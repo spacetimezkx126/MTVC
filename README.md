@@ -1,4 +1,4 @@
-# MTVC — Multi-scale Temporal Virtual-node Contrast
+# MTVC — MultiModal Transformer with Virtual-node and Contrast
 
 Official training code for **MTVC** (also referred to as JMTVC / Partially Unified in the paper):
 a price–news stock movement model with partially unified encoding, virtual industry/market nodes,
