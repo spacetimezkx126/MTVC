@@ -7,9 +7,8 @@ cuDNN nondeterminism, not a model bug — default atol absorbs that.
 
 Usage::
 
-    /home/zhaokx/miniconda3/envs/CAMEF/bin/python code/eval_acc_mcc_vs_meta.py
-    /home/zhaokx/miniconda3/envs/CAMEF/bin/python code/eval_acc_mcc_vs_meta.py \\
-        --roles full,nonews,crossattn --device cuda:0
+    python code/eval_acc_mcc_vs_meta.py
+    python code/eval_acc_mcc_vs_meta.py --roles full,nonews,crossattn --device cuda:0
 """
 from __future__ import annotations
 
@@ -23,16 +22,12 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[1]  # MTVC/
 MTVC = REPO / "code" / "mtvc"
 CKPT_ROOT = REPO / "checkpoints"
-DUAL_TF = Path("/home/zhaokx/Pattern/Pattern_Mining/dual_tf")
 
-os.chdir(str(REPO if (REPO / "checkpoints").is_dir() else DUAL_TF))
-# Prefer dual_tf as CWD so dataset roots resolve like training launches.
-if DUAL_TF.is_dir():
-    os.chdir(str(DUAL_TF))
-os.environ["DUAL_TF_MODEL_DIR"] = str(DUAL_TF)
+os.chdir(str(REPO))
+os.environ.setdefault("DUAL_TF_MODEL_DIR", str(REPO))
 
 # Match launch_*_casel6_3ds.sh paper env
 os.environ["MTVC_USE_TYPE_EMB"] = "1"

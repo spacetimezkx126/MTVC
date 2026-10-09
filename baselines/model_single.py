@@ -127,7 +127,7 @@ class BiLSTM(nn.Module):
 class AdvALSTM(nn.Module):
     """
     Adv-ALSTM (Attentive LSTM + adversarial training on latent features).
-    PyTorch port of /home/zhaokx/Pattern/compared_model/Adv-ALSTM-master/pred_lstm.py (att=1, adv=1).
+    PyTorch port of Adv-ALSTM pred_lstm.py (att=1, adv=1).
     """
 
     def __init__(
@@ -269,7 +269,7 @@ class DataAxisAttention(nn.Module):
 
 class DTML(nn.Module):
     """
-    DTML from /home/zhaokx/Pattern/compared_model/DTML-pytorch-main/notebooks/dtml.ipynb
+    DTML from upstream DTML-pytorch notebook
 
     Input: [B, seq_len, n_stocks, features]  (same HLC as LSTM, stacked by date)
     Index: one stock (--dtml_market_index>=0) or cross-section mean (default -1)

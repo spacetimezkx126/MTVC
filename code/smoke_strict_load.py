@@ -63,8 +63,7 @@ MTVC = Path(__file__).resolve().parent / "mtvc"
 CKPT_ROOT = REPO / "checkpoints"
 
 os.chdir(str(REPO))
-_dual_tf = Path("/home/zhaokx/Pattern/Pattern_Mining/dual_tf")
-os.environ["DUAL_TF_MODEL_DIR"] = str(_dual_tf if _dual_tf.is_dir() else MTVC)
+os.environ.setdefault("DUAL_TF_MODEL_DIR", str(REPO))
 os.environ["MTVC_USE_TYPE_EMB"] = "1"
 os.environ["MTVC_UNIFIED_CAUSAL"] = "1"
 os.environ["MTVC_UNIFIED_SAME_DAY"] = "0"

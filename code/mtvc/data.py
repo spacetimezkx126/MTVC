@@ -32,18 +32,29 @@ import numpy as np
 import torch
 from transformers import AutoModel, AutoTokenizer, BertTokenizer
 
-_DIR = os.path.dirname(os.path.abspath(__file__))
-_PATTERN_ROOT = os.path.dirname(_DIR)
+_DIR = os.path.dirname(os.path.abspath(__file__))          # .../MTVC/code/mtvc
+_CODE_ROOT = os.path.dirname(_DIR)                         # .../MTVC/code
+_MTVC_ROOT = os.path.dirname(_CODE_ROOT)                   # .../MTVC
+# Alias used by pattern/data helpers (package root).
+_PATTERN_ROOT = _MTVC_ROOT
+
+
+def _default_finbert_path(*, us: bool = False) -> str:
+    """FinBERT checkpoint under MTVC/models/ (optional; override with FINBERT_MODEL_PATH)."""
+    env = (os.environ.get("FINBERT_MODEL_PATH") or "").strip()
+    if env:
+        return env
+    name = "finbert-pretrain" if us else "finbert-tone-chinese"
+    return os.path.join(_MTVC_ROOT, "models", name)
 
 
 def _dict_search_dirs() -> list[str]:
     dirs: list[str] = []
     for d in (
-        os.path.join(_PATTERN_ROOT, "dict"),
+        os.path.join(_MTVC_ROOT, "dict"),
+        os.path.join(_CODE_ROOT, "dict"),
         os.path.join(_DIR, "dict"),
-        "/home/zhaokx/Pattern/Pattern_Mining/dict",
-        "/home/zhaokx/Pattern/Pattern_Mining/dict",
-        os.path.join(os.path.expanduser("~"), "Pattern_Mining", "dict"),
+        "./dict",
     ):
         if d not in dirs:
             dirs.append(d)
@@ -54,14 +65,14 @@ def _primary_dict_dir() -> str:
     for d in _dict_search_dirs():
         if os.path.isdir(d):
             return d
-    return os.path.join(_PATTERN_ROOT, "dict")
+    return os.path.join(_MTVC_ROOT, "dict")
 
 
 DICT_DIR = _primary_dict_dir()
 
 
 def resolve_vocab_path(path: str | None, *fallback_names: str) -> str:
-    """解析词表路径，在 Pattern_Mining/dict 等目录下查找。"""
+    """Resolve vocab path under MTVC/dict (and optional relative ./dict)."""
     candidates: list[str] = []
     if path:
         candidates.append(path)
@@ -1284,7 +1295,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             self.prev_date[comp] = prev_map
 
         # FinBERT tokenizer（vocab 模式可跳过以加速）
-        _default_fb = "/home/zhaokx/Pattern/Pattern_Mining/models/finbert-tone-chinese"
+        _default_fb = _default_finbert_path(us=False)
         finbert_model_path = str(finbert_model_path or "").strip() or _default_fb
         self._finbert_model_path = finbert_model_path
         self.news_tokenizer = None
@@ -2543,7 +2554,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             self.prev_date[comp] = prev_map
 
         # FinBERT tokenizer（vocab 模式可跳过以加速）
-        _default_fb = "/home/zhaokx/Pattern/Pattern_Mining/models/finbert-tone-chinese"
+        _default_fb = _default_finbert_path(us=False)
         finbert_model_path = str(finbert_model_path or "").strip() or _default_fb
         self._finbert_model_path = finbert_model_path
         self.news_tokenizer = None
@@ -3754,7 +3765,7 @@ _PROFILES: dict[str, DatasetProfile] = {
     "csmd50": DatasetProfile(
         key="csmd50",
         description="CSMD 50 股",
-        default_root=os.path.join(_PATTERN_ROOT, "dataset", "CSMD50"),
+        default_root=os.path.join(_MTVC_ROOT, "data", "CSMD50"),
         vocab_path=os.path.join(DICT_DIR, "dict_csmd.pkl"),
         grid_num_stocks=50,
         num_industry=27,
@@ -3781,7 +3792,7 @@ _PROFILES: dict[str, DatasetProfile] = {
     "csmd300": DatasetProfile(
         key="csmd300",
         description="CSMD 300 股",
-        default_root=os.path.join(_PATTERN_ROOT, "dataset", "CSMD300"),
+        default_root=os.path.join(_MTVC_ROOT, "data", "CSMD300"),
         vocab_path=os.path.join(DICT_DIR, "dict_csmd.pkl"),
         grid_num_stocks=300,
         num_industry=27,
@@ -3808,7 +3819,7 @@ _PROFILES: dict[str, DatasetProfile] = {
     "massive": DatasetProfile(
         key="massive",
         description="Massive.com StockTable ~88 US stocks (2022-2025, with news sentiment)",
-        default_root=os.path.join(_PATTERN_ROOT, "dataset", "massive_data"),
+        default_root=os.path.join(_MTVC_ROOT, "data", "massive_data"),
         vocab_path=os.path.join(DICT_DIR, "dict_massive.pkl"),
         grid_num_stocks=88,
         num_industry=27,
@@ -4463,10 +4474,7 @@ def precompute_news_node_embeddings(
     companies = sorted(list(news_texts.keys()))
 
     if finbert_model_path is None or not str(finbert_model_path).strip():
-        if pk == "massive":
-            finbert_model_path = "/home/zhaokx/Pattern/Pattern_Mining/models/finbert-pretrain"
-        else:
-            finbert_model_path = "/home/zhaokx/Pattern/Pattern_Mining/models/finbert-tone-chinese"
+        finbert_model_path = _default_finbert_path(us=(pk == "massive"))
     finbert_model_path = str(finbert_model_path).strip()
     print(f"[precompute_news_node] profile={pk} subdir={sub} finbert={finbert_model_path}")
     print(f"[precompute_news_node] out={out_path} max_seq_len={max_seq_len} batch_size={batch_size}")
@@ -4572,11 +4580,7 @@ def precompute_news_padding_embeddings(
     dates_sorted = sorted(all_dates)
 
     if finbert_model_path is None or not str(finbert_model_path).strip():
-        finbert_model_path = (
-            "/home/zhaokx/Pattern/Pattern_Mining/models/finbert-pretrain"
-            if pk == "massive"
-            else "/home/zhaokx/Pattern/Pattern_Mining/models/finbert-tone-chinese"
-        )
+        finbert_model_path = _default_finbert_path(us=(pk == "massive"))
     finbert_model_path = str(finbert_model_path).strip()
     tokenizer = AutoTokenizer.from_pretrained(finbert_model_path)
     model = AutoModel.from_pretrained(finbert_model_path).to(device)

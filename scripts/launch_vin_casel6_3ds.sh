@@ -6,16 +6,15 @@
 # Stack: partial_unified + case-mine L6 → vin_{mkt_as_ind,ind_as_mkt}_casel6.
 set -u
 REPRO="$(cd "$(dirname "$0")/.." && pwd)"
-DUAL="$(cd "$REPRO/.." && pwd)"
-cd "$DUAL"
-export DUAL_TF_MODEL_DIR="$DUAL"
+cd "$REPRO"
+export DUAL_TF_MODEL_DIR="$REPRO"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export MTVC_USE_TYPE_EMB=1 MTVC_UNIFIED_CAUSAL=1 MTVC_TRANSFORMER_LAYERS=6
 export MTVC_SOFT_PRUNE=0 MTVC_UNIFIED_SAME_DAY=0 MTVC_SHARE_PRICE_NEWS_ENC=0
 export DUAL_TF_CUDA_LOCK="${DUAL_TF_CUDA_LOCK:-1}"
 unset MTVC_FIXED_TRAIN_ORDER MTVC_UNIFIED_LAYERS MTVC_HARD_FINETUNE MTVC_LOOP_ROUNDS 2>/dev/null || true
 
-PY=/home/zhaokx/miniconda3/envs/CAMEF/bin/python
+PY="${PYTHON:-python3}"
 RUN="$REPRO/code/run_mtvc.py"
 VOCAB_CSMD="$REPRO/dict/dict_csmd.pkl"
 VOCAB_MASSIVE="$REPRO/dict/dict_massive.pkl"

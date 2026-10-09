@@ -1,6 +1,6 @@
 """
 PyTorch reimplementation of PEN (# pen 分支) from
-/home/zhaokx/Pattern/compared_model/PEN/PEN_python2/PEN-main/src/Model.py
+# Ported from upstream PEN Model.py
 
 MEL -> MSIN(price, msg_embed) -> VMD -> TDA -> generative / discriminative ATA.
 StockNet 路径见 model_stocknet.py（MEL -> corpus_embed -> concat price）。

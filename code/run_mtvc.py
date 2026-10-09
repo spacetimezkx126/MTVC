@@ -3,7 +3,7 @@
 
 Usage (from anywhere)::
 
-    python MTVC_paper_repro/code/run_mtvc.py --dataset csmd50 --mode train ...
+    python code/run_mtvc.py --dataset csmd50 --mode train ...
 
 Does not contain model logic; only path setup + ``runpy``.
 """
@@ -13,16 +13,17 @@ import os
 import runpy
 import sys
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_DUAL_TF = os.path.abspath(os.path.join(_HERE, "..", ".."))
-_MTVC = os.path.join(_HERE, "mtvc")
+_HERE = os.path.dirname(os.path.abspath(__file__))          # .../MTVC/code
+_MTVC_ROOT = os.path.abspath(os.path.join(_HERE, ".."))     # .../MTVC
+_MTVC_PKG = os.path.join(_HERE, "mtvc")
 
-os.environ["DUAL_TF_MODEL_DIR"] = _DUAL_TF
-os.chdir(_DUAL_TF)
+# Package root for data/dict resolution; override with DUAL_TF_MODEL_DIR if needed.
+os.environ.setdefault("DUAL_TF_MODEL_DIR", _MTVC_ROOT)
+os.chdir(_MTVC_ROOT)
 
-if _DUAL_TF not in sys.path:
-    sys.path.append(_DUAL_TF)
-if _MTVC not in sys.path:
-    sys.path.insert(0, _MTVC)
+if _MTVC_ROOT not in sys.path:
+    sys.path.append(_MTVC_ROOT)
+if _MTVC_PKG not in sys.path:
+    sys.path.insert(0, _MTVC_PKG)
 
-runpy.run_path(os.path.join(_MTVC, "main.py"), run_name="__main__")
+runpy.run_path(os.path.join(_MTVC_PKG, "main.py"), run_name="__main__")

@@ -67,9 +67,9 @@ run_mtvc.py
 复评对齐 meta（容许 ≈1–2/8653 FP 误差）::
 
 ```bash
-/home/zhaokx/miniconda3/envs/CAMEF/bin/python code/eval_acc_mcc_vs_meta.py --roles all
-# 或
-/home/zhaokx/miniconda3/envs/CAMEF/bin/python code/eval_acc_mcc_vs_meta.py --from-catalog
+python code/eval_acc_mcc_vs_meta.py --roles all
+# or
+python code/eval_acc_mcc_vs_meta.py --from-catalog
 ```
 
 重训脚本（与 `checkpoints/` 同名）：

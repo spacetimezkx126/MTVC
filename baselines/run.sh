@@ -5,9 +5,10 @@
 # Checkpoint / early-stop: highest val Acc+MCC (--best_metric val_acc_mcc).
 set -u
 
-ROOT="/home/zhaokx/Pattern/Pattern_Mining/dual_tf/contrast_exp_novol_s42_46"
-PYTHON="/home/zhaokx/miniconda3/envs/CAMEF/bin/python"
-OS_EXTRA="/home/zhaokx/Pattern/Pattern_Mining/dual_tf/shared_splits/massive_contiguous_match_test_posrate/train_oversample_extra.jsonl"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+MTVC="$(cd "$ROOT/.." && pwd)"
+PYTHON="${PYTHON:-python3}"
+OS_EXTRA="${OS_EXTRA:-$MTVC/assets/massive_oversample/train_oversample_extra.jsonl}"
 cd "$ROOT"
 export PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
@@ -29,9 +30,9 @@ fi
 
 SEEDS=(42 43 44 45 46)
 DATASETS=(
-  "CSMD50|/home/zhaokx/Pattern/Pattern_Mining/dataset/CSMD50"
-  "CSMD300|/home/zhaokx/Pattern/Pattern_Mining/dataset/CSMD300"
-  "MASSIVE|/home/zhaokx/Pattern/Pattern_Mining/dataset/massive_data"
+  "CSMD50|$MTVC/data/CSMD50"
+  "CSMD300|$MTVC/data/CSMD300"
+  "MASSIVE|${MASSIVE_ROOT:-$MTVC/data/massive_data}"
 )
 
 PREFERRED_GPUS=(0 1)

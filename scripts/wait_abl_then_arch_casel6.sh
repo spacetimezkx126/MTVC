@@ -3,7 +3,6 @@
 # (multinews → crossattn → fullunified).
 set -u
 REPRO="$(cd "$(dirname "$0")/.." && pwd)"
-DUAL="$(cd "$REPRO/.." && pwd)"
 LOGDIR="$REPRO/launch_logs"
 mkdir -p "$LOGDIR"
 WAIT_LOG="$LOGDIR/wait_abl_then_arch_casel6_$(date +%Y%m%d_%H%M%S).log"
@@ -27,7 +26,7 @@ while abl_launcher_alive || abl_workers_alive; do
 done
 
 echo "[WAIT] abl finished $(date '+%F %T'); launching arch (multinews→crossattn→fullunified)"
-cd "$DUAL"
+cd "$REPRO"
 nohup bash "$REPRO/scripts/launch_arch_casel6_3ds.sh" \
   > "$LOGDIR/nohup_arch_casel6_3ds.out" 2>&1 &
 echo "[WAIT] next_launcher_pid=$! out=$LOGDIR/nohup_arch_casel6_3ds.out"

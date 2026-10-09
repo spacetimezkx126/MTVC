@@ -1606,13 +1606,17 @@ class Model(nn.Module):
         self.reduce_dim = nn.Linear(self.global_feat_dim, 1)
 
         # vocab_token CNN encoder（需与 Dataset 使用相同词表，否则 vocab_input_ids 索引越界）
+        # Prefer package dict/ relative to DUAL_TF_MODEL_DIR (MTVC root) or this file.
+        _pkg_root = os.environ.get("DUAL_TF_MODEL_DIR") or os.path.abspath(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+        )
         _candidates = (
             [vocab_path] if vocab_path else []
         ) + [
-            "/home/zhaokx/Pattern/Pattern_Mining/dict/dict_csmd.pkl",
-            "/home/zhaokx/Pattern/Pattern_Mining/dict/dict_massive.pkl",
-            os.path.join(_MODEL_DIR, "../../dict/dict_csmd.pkl"),
-            os.path.join(_MODEL_DIR, "../../dict/dict_massive.pkl"),
+            os.path.join(_pkg_root, "dict", "dict_csmd.pkl"),
+            os.path.join(_pkg_root, "dict", "dict_massive.pkl"),
+            os.path.join(_MODEL_DIR, "dict", "dict_csmd.pkl"),
+            os.path.join(_MODEL_DIR, "dict", "dict_massive.pkl"),
         ]
         _loaded_path = None
         for _p in _candidates:

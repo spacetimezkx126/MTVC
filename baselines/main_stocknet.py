@@ -418,35 +418,30 @@ def load_all_data(
 def resolve_vocab_path(dataset_root: str) -> str:
     kind = detect_dataset_kind(dataset_root)
     _here = os.path.dirname(os.path.abspath(__file__))
-    _repo_dict = os.path.normpath(os.path.join(_here, "../../dict"))
-    _home_dict = "/home/zhaokx/Pattern/Pattern_Mining/dict"
+    # MTVC/baselines → MTVC/dict
+    _pkg_dict = os.path.normpath(os.path.join(_here, "../dict"))
     candidates = {
         "CSMD50": [
-            os.path.join(_home_dict, "dict_csmd.pkl"),
-            os.path.join(_repo_dict, "dict_csmd.pkl"),
+            os.path.join(_pkg_dict, "dict_csmd.pkl"),
             "./dict/dict_csmd.pkl",
         ],
         "CSMD300": [
-            os.path.join(_home_dict, "dict_csmd.pkl"),
-            os.path.join(_repo_dict, "dict_csmd.pkl"),
+            os.path.join(_pkg_dict, "dict_csmd.pkl"),
             "./dict/dict_csmd.pkl",
         ],
         "CMIN-CN": [
-            os.path.join(_home_dict, "dict_cn.pkl"),
-            os.path.join(_repo_dict, "dict_cn.pkl"),
+            os.path.join(_pkg_dict, "dict_cn.pkl"),
             "./dict/dict_cn.pkl",
         ],
         "CMIN-US": [
-            os.path.join(_home_dict, "dict_us.pkl"),
-            os.path.join(_repo_dict, "dict_us.pkl"),
+            os.path.join(_pkg_dict, "dict_us.pkl"),
             "./dict/dict_us.pkl",
         ],
         "MASSIVE": [
-            os.path.join(_home_dict, "dict_massive.pkl"),
-            os.path.join(_repo_dict, "dict_massive.pkl"),
+            os.path.join(_pkg_dict, "dict_massive.pkl"),
             "./dict/dict_massive.pkl",
-            os.path.join(_home_dict, "dict_us.pkl"),
-            os.path.join(_repo_dict, "dict_us.pkl"),
+            os.path.join(_pkg_dict, "dict_us.pkl"),
+            "./dict/dict_us.pkl",
         ],
     }
     for p in candidates.get(kind, candidates["CSMD50"]):

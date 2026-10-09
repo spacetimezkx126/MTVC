@@ -1,11 +1,9 @@
 # MTVC — MultiModal Transformer with Virtual-node and Contrast
 
-Official training code for **MTVC** (also referred to as JMTVC / Partially Unified in the paper):
-a price–news stock movement model with partially unified encoding, virtual industry/market nodes,
-and multi-scale temporal contrastive learning.
+Official training code for **MTVC**:
+a price–news stock movement model with partially unified transformer, virtual nodes and contrastive learning.
 
-This repository is a cleaned release package: formal code, launch scripts, baseline checkpoints,
-CSMD50 data, and a single-ticker Massive Source sample.
+This repository is a release package: formal code, launch scripts, baseline code. 
 
 ## Repository layout
 
@@ -15,13 +13,12 @@ MTVC/
   code/                      # Training package
     run_mtvc.py              # Entrypoint
     mtvc/                    # Model / data / train / CLI
-  scripts/                   # Multi-GPU launchers (L1–L6 + ablations)
+  scripts/                   # launcher codes (L1–L6 + ablations)
   data_preparation/          # Dataset build / industry remap / phase align
-  return_rate_analysis/      # Portfolio backtest + paper return plots
-  phase_periodicity/         # Market-phase visualization helpers
+  return_rate_analysis/      # Portfolio backtest + return plots
+  phase_periodicity/         # Market-periodicity visualization helpers
   assets/                    # Massive oversample extras, etc.
-  baselines/
-    novol_accmcc/            # Baseline *code* only (no checkpoints)
+  baselines/                 # Baseline *code* only (run.sh + models; no checkpoints)
   dict/
     dict_csmd.pkl
     dict_massive.pkl
@@ -129,13 +126,6 @@ $PY $MTVC_ROOT/return_rate_analysis/scripts/summarize_acc_mcc_casel6.py
 
 Acc/MCC alignment vs checkpoint meta: `code/eval_acc_mcc_vs_meta.py`.
 
-## Formal naming (checkpoints)
-
-- Main model: `full_casel6` (`--mtvc_case_layer 6`)
-- Layer study: `full_casel{1..5}`
-- Component ablations: `abl_*_casel6`
-- Encoder / news-contrast: `crossattn_casel6`, `fullunified_casel6`, `multinews_casel6`
-- VIN connect: `vin_*_casel6`
 
 ## Citation
 
@@ -143,6 +133,6 @@ If you use this code or the CSMD / Massive setups, please cite the MTVC paper (P
 
 ## License / notes
 
-- `baselines/novol_accmcc/` ships **source code only** (no baseline checkpoints).
+- `baselines/` ships **source code only** (no baseline checkpoints); paths are package-relative.
 - The AAPL Massive slice is a **sample**; redistribute only what your data license allows.
 - Training logs and new runs go to `checkpoints/` and `launch_logs/` (create as needed; not pre-populated).
