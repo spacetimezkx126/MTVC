@@ -1,0 +1,3 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-11-06 12:02:00,Elephants In The Room,,,AAPL|AMZN|CVX|GM|GOOG|GOOGL|IBM|META|SNAP,https://seekingalpha.com/article/4553958-elephants-in-the-room,Seeking Alpha
+AAPL,AAPL,2022-11-06 13:04:00,Better Big Tech Stock: Apple vs. Alphabet,,,AAPL|GOOGL|GOOG,https://www.fool.com/investing/2022/11/06/better-big-tech-stock-apple-vs-alphabet/,The Motley Fool

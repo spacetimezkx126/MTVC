@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-05-15 07:41:54,Apple Looking For A Bottom,,,AAPL,https://seekingalpha.com/article/4511725-apple-aapl-stock-looking-for-a-bottom,Seeking Alpha
+AAPL,AAPL,2022-05-15 11:30:00,1 Investment I'm Stocking Up On if the Market Crashes,,,GOOGL|AAPL|TSLA|AMZN|GOOG,https://www.fool.com/investing/2022/05/15/1-investment-im-stocking-up-on-if-the-market-crash/,The Motley Fool
+AAPL,AAPL,2022-05-15 12:15:00,Is Matterport Stock a Buy Now?,,,MTTR|ZG|AAPL|GOOGL|GOOG|Z,https://www.fool.com/investing/2022/05/15/is-matterport-stock-a-buy-now/,The Motley Fool

@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-07-16 10:02:08,Intel Is Ugly: So Are Nvidia And AMD,,,AAPL|AMD|AMZN|GOOG|GOOGL|MU|NVDA|INTC,https://seekingalpha.com/article/4523742-intel-vs-nvidia-amd-foundry-analysis,Seeking Alpha
+AAPL,AAPL,2022-07-16 12:00:00,Nintendo Demand Holds Strong Amid Supply Chain Issues,,,AAPL,https://www.fool.com/investing/2022/07/16/nintendo-demand-holds-strong-amid-supply-chain-iss/,The Motley Fool
+AAPL,AAPL,2022-07-16 16:52:00,The SPACsplosion is about to become a liquidation frenzy — and that may be for the best,,,PSTH|SPCE|AAPL|SWVL|DWAC|IPO|IPOS,https://www.marketwatch.com/story/the-spacsplosion-is-about-to-become-a-liquidation-frenzy-and-that-may-be-for-the-best-11657884798,MarketWatch

@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-09-19 06:50:00,Market Volatility Suppressed Ahead of OPEX as Liquidity Drain Continues,neutral,"Mentioned in market movers with a slight (-0.46%) price movement, no significant negative or positive commentary",AAPL|NVDA|TSLA|AMZN,https://www.investing.com/analysis/market-volatility-suppressed-ahead-of-opex-as-liquidity-drain-continues-200667171,Investing.com

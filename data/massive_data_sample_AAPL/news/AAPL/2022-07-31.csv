@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-07-31 07:20:51,Apple: And The Love Story Continues,,,AAPL,https://seekingalpha.com/article/4528019-apple-q3-earnings-love-story-continues,Seeking Alpha
+AAPL,AAPL,2022-07-31 11:48:00,"3 Stocks To Watch This Week: Caterpillar, PayPal, Moderna",,,AMZN|AAPL|ROKU|INTC|CAT|PYPL|EBAY|MRNA,https://www.investing.com/analysis/3-stocks-to-watch-this-week-caterpillar-paypal-moderna-200627863,Investing.com
+AAPL,AAPL,2022-07-31 12:00:00,3 Tech Companies That Should Initiate a Stock Split,,,PANW|AAPL|AVGO|GOOGL|AMZN|VMW|MELI|GOOG,https://www.fool.com/investing/2022/07/31/3-tech-companies-should-initiate-stock-split/,The Motley Fool
+AAPL,AAPL,2022-07-31 17:17:56,"Gurman Says Apple's Q3 Mac Weakness Is A Blip, But Flags These As Concerns",,,AAPL,https://www.benzinga.com/analyst-ratings/analyst-color/22/07/28280685/gurman-says-apples-q3-mac-weakness-blip-rather-than-start-of-downtrend-but-flags-th,Benzinga

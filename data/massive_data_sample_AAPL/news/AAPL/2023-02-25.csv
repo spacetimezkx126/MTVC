@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-02-25 11:55:00,3 Safe Tech Stocks for Any Market Environment,,,AAPL|MSFT|GOOGL|GOOG,https://www.fool.com/investing/2023/02/25/3-safe-tech-stocks-for-any-market-environment/,The Motley Fool
+AAPL,AAPL,2023-02-25 13:15:00,2 Top Dividend Stocks to Buy and Hold for 2023 and Beyond,,,STE|AAPL,https://www.fool.com/investing/2023/02/25/2-top-dividend-stocks-to-buy-and-hold-for-2023-and/,The Motley Fool
+AAPL,AAPL,2023-02-25 14:15:00,A Bull Market Is Coming: 3 Reasons to Buy Apple Stock,,,AAPL,https://www.fool.com/investing/2023/02/25/bull-market-coming-3-reasons-buy-apple-stock/,The Motley Fool
+AAPL,AAPL,2023-02-25 19:58:00,Warren Buffett’s Berkshire posts 8% drop in operating earnings as railroad business sags,,,BRK.A|BRK.B|AAPL,https://www.marketwatch.com/story/warren-buffetts-berkshire-posts-8-drop-in-operating-earnings-as-railroad-business-sags-58a054fd,MarketWatch
+AAPL,AAPL,2023-02-25 20:42:00,Warren Buffett's Berkshire Hathaway is the largest investor in these 8 stocks,,,AXP|BAC|CVX|OXY|KO|HPQ|MCO|PARA|AAPL|BRK.A|BRK.B,https://www.marketwatch.com/story/warren-buffets-berkshire-hathaway-is-the-largest-investor-in-these-8-stocks-1eb967c8,MarketWatch

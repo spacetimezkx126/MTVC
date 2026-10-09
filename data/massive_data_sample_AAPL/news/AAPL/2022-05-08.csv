@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-05-08 04:49:00,"Bond Market Woes, And Forward S&P 500 Earnings Weakened A Little",,,AMZN|AAPL|TSLA|CSCO|WMT,https://www.investing.com/analysis/bond-market-woes-and-forward-sp-500-earnings-weakened-a-little-200623684,Investing.com
+AAPL,AAPL,2022-05-08 05:01:00,These 5 7%-12% Dividend Payers Are In The Bargain Bin,,,AAPL|NYCB|CTBI|FBC|ORI|KO|PG|CEQP|GGB|GM|F|OMF,https://www.investing.com/analysis/these-5-712-dividend-payers-are-in-the-bargain-bin-200623692,Investing.com
+AAPL,AAPL,2022-05-08 11:15:00,2 Beaten-Down Tech Stocks That Are Ready to Rebound,,,FB|AAPL|PINS,https://www.fool.com/investing/2022/05/08/2-beaten-down-tech-stocks-that-are-ready-to-reboun/,The Motley Fool
+AAPL,AAPL,2022-05-08 11:45:00,2 Under-the-Radar Tech Stocks to Buy in 2022,,,UPST|BRK.A|AAPL|AMZN|BRK.B|FICO|SQ|STNE,https://www.fool.com/investing/2022/05/08/2-under-the-radar-tech-stocks-to-buy-in-2022/,The Motley Fool
+AAPL,AAPL,2022-05-08 13:55:00,Apple's Services Business Has Never Been More Important,,,AAPL|GOOGL|MS|GOOG,https://www.fool.com/investing/2022/05/08/apples-services-business-has-never-been-more-impor/,The Motley Fool

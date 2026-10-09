@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-09-01 12:12:00,This 'Small' 7.2% Dividend Is An Oasis of Cheap in a Pricey Market,neutral,"Part of the large-cap tech group that has dominated market performance, potentially overvalued and due for a correction",AAPL|GOOG|GOOGL|META|MSFT|IESC|AGO|SEIC,https://www.investing.com/analysis/this-small-72-dividend-is-an-oasis-of-cheap-in-a-pricey-market-200666199,Investing.com

@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-12-26 18:05:00,Exploring the Silver Rally: 3 Key Factors Driving Up Prices,neutral,Mentioned only as a valuation comparison point; silver's market cap has surpassed Apple's valuation. No direct business impact or relevance to the article's main narrative.,AAPL|NVDA,https://www.investing.com/analysis/exploring-the-silver-rally-3-key-factors-driving-up-prices-200672395,Investing.com

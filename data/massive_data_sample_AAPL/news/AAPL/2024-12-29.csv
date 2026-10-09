@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-12-29 12:15:00,34% of the S&P 500's Value Comes From Just 8 Stocks,positive,"Apple is one of the 'Fateful Eight' stocks that have outperformed the broader market, suggesting it is a key driver of the S&P 500's recent gains.",GOOG|GOOGL|AMZN|AAPL|META|MSFT|NVDA|TSLA|AVGO|RSP,https://www.fool.com/investing/2024/12/29/34-of-the-sp-500-index-value-comes-from/?source=iedfolrf0000001,The Motley Fool

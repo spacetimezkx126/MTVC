@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-05-14 09:07:21,Apple: 1 Billion Paying Subscribers And Emerging Markets Focus,,,AAPL,https://seekingalpha.com/article/4604272-apple-stock-1-billion-paying-subscribers-and-emerging-markets-focus,Seeking Alpha
+AAPL,AAPL,2023-05-14 09:15:00,These 3 Tech Stocks Are Building the Future,,,AMD|AAPL|MSFT,https://www.fool.com/investing/2023/05/14/these-3-tech-stocks-are-building-the-future/,The Motley Fool
+AAPL,AAPL,2023-05-14 15:11:00,Is Apple Now a Top Dividend Stock?,,,AAPL|KO|MCD|MMM,https://www.fool.com/investing/2023/05/14/is-apple-now-a-top-dividend-stock/,The Motley Fool

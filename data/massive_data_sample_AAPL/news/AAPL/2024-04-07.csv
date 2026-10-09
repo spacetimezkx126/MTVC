@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-04-07 09:45:00,"Forget Nvidia: Here Are 3 ""Magnificent Seven"" Stocks Wall Street Thinks Will Soar More",,,AAPL|GOOGL|AMZN|NVDA|GOOG,https://www.fool.com/investing/2024/04/07/forget-nvidia-here-are-3-magnificent-seven-stocks/,The Motley Fool
+AAPL,AAPL,2024-04-07 11:37:00,1 Top Buffett Stock to Buy and Hold for the Long Haul,,,AMZN|AAPL,https://www.fool.com/investing/2024/04/07/1-top-buffett-stock-to-buy-and-hold/,The Motley Fool
+AAPL,AAPL,2024-04-07 16:00:00,Nvidia Stock Is Like Cisco Stock Before the Dot-Com Crash? There Are Big Holes in This Theory,,,NVDA|CSCO|AAPL|IBM|AMD,https://www.fool.com/investing/2024/04/07/nvda-stock-ai-stocks-ai-bubble-cisco-dot-com-crash/,The Motley Fool

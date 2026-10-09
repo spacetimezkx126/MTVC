@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-01-01 06:30:54,2023 Dividend Growth Portfolio Review And Look Ahead,,,ABBV|ABT|ADP|AFL|AMGN|AMP|AOS|APD|AVGO|BBY|BLK|BMY|BX|CAH|CINF|CME|COP|CVS|DHIL|DUK|EPD|FBIN|HD|HON|ICE|INTC|JNJ|LADR|LMT|LOW|MBC|MDT|MO|MSA|MSFT|NNN|O|OHI|PEP|PM|PRU|PSX|SBUX|SJM|SNA|SPG|TXN|UL|V|WBA|AAPL,https://seekingalpha.com/article/4567219-2023-dividend-growth-portfolio-review-and-look-ahead,Seeking Alpha
+AAPL,AAPL,2023-01-01 10:13:00,2 Beaten-Down Warren Buffett Stocks to Buy in 2023,,,PARA|BRK.A|BRK.B|AAPL,https://www.fool.com/investing/2023/01/01/beaten-down-warren-buffett-stocks-to-buy-in-2023/,The Motley Fool
+AAPL,AAPL,2023-01-01 10:50:00,80% of Warren Buffett's Portfolio Is Invested in These 7 Stocks as 2023 Begins,,,AAPL|BRK.A|BRK.B|BAC|KO|CVX|AXP|OXY|KHC,https://www.fool.com/investing/2023/01/01/80-of-warren-buffetts-portfolio-is-invested-in-the/,The Motley Fool
+AAPL,AAPL,2023-01-01 11:00:00,"Down 28% in 2022, Is Apple Stock a Buy for 2023?",,,AAPL,https://www.fool.com/investing/2023/01/01/down-28-in-2022-is-apple-stock-a-buy-for-2023/,The Motley Fool

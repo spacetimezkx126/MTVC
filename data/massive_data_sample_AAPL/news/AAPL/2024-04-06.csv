@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-04-06 10:45:00,Should You Buy Nvidia Favorite SoundHound AI Stock?,,,SOUN|GOOGL|AAPL|HMC|AMZN|NVDA|GOOG,https://www.fool.com/investing/2024/04/06/should-you-buy-soundhound-ai-stock/,The Motley Fool
+AAPL,AAPL,2024-04-06 10:50:00,"Berkshire Hathaway Stock: Buy, Sell, or Hold?",,,BRK.B|BRK.A|AAPL,https://www.fool.com/investing/2024/04/06/berkshire-hathaway-stock-buy-sell-hold/,The Motley Fool
+AAPL,AAPL,2024-04-06 11:07:00,Apple Winds Down Spending in 1 Key Area Where Meta Has Been Surprisingly Transparent,,,AAPL|META,https://www.fool.com/investing/2024/04/06/apple-cuts-spending-in-1-key-area-for-meta/,The Motley Fool

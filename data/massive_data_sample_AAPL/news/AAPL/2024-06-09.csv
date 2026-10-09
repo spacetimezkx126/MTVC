@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-06-09 11:50:14,Wall Street Breakfast: The Week Ahead,,,AAPL|TSLA|ORCL|AVGO|ADBE|ZK|YEXT|CVGW|FCEL|CASY|RBRK|PLAY|OXM|SIG|RH|NVDA|MLGO|EAT|KNOP|MDB|DLO|NRDY|SPWR|PLCE|BTOC|JDZG|RAY|HDL|AMZN|QRVO|STLA|HLIT|R,https://seekingalpha.com/article/4698248-wall-street-breakfast-week-ahead,Seeking Alpha
+AAPL,AAPL,2024-06-09 12:00:00,2 Top Tech Stocks to Buy in June,,,AAPL|INTC,https://www.fool.com/investing/2024/06/09/2-top-tech-stocks-to-buy-in-june/,The Motley Fool
+AAPL,AAPL,2024-06-09 14:41:00,What Is the Dividend Payout for Alphabet?,,,GOOGL|AAPL|MSFT|GOOG,https://www.fool.com/investing/2024/06/09/what-is-the-dividend-payout-for-alphabet/,The Motley Fool

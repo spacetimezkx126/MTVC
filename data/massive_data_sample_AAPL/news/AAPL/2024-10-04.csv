@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-10-04 16:05:54,"AI Stocks Ripping, Barn Burner Jobs Report - Could Powell Be Wrong?",positive,The article mentions that money flows are positive for Apple in the early trade.,AAPL|AMZN|GOOG|GOOGL|META|MSFT|NVDA|TSLA|SPY|QQQ,https://www.benzinga.com/general/market-summary/24/10/41188370/ai-stocks-ripping-barn-burner-jobs-report-could-powell-be-wrong,Benzinga

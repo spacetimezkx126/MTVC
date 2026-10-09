@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-02-12 10:20:00,This 1 Key Figure Shows Apple Stock's Growth Potential,,,AAPL,https://www.fool.com/investing/2023/02/12/this-1-key-figure-shows-apple-stocks-growth-potent/,The Motley Fool
+AAPL,AAPL,2023-02-12 12:00:00,Is It Too Late to Buy Apple Stock?,,,AAPL,https://www.fool.com/investing/2023/02/12/is-it-too-late-to-buy-apple-stock/,The Motley Fool
+AAPL,AAPL,2023-02-12 12:35:00,Where Will Apple Stock Be in 3 Years?,,,AAPL|IT,https://www.fool.com/investing/2023/02/12/where-will-apple-stock-be-in-3-years/,The Motley Fool
+AAPL,AAPL,2023-02-12 21:00:00,Has Google Already Lost The ChatGPT War?,,,AI|MSFT|AMZN|AAPL|GOOG|GOOGL,https://seekingalpha.com/article/4577393-has-google-already-lost-the-chatgpt-war,Seeking Alpha

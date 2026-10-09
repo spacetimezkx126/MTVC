@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-05-13 12:00:00,Apple: 2 Billion Reasons Buffett's Favorite Company Just Changed The Game,,,TSLA|GM|F|STLA|TM|AAPL,https://seekingalpha.com/article/4603333-apple-2-billion-reasons-buffetts-favorite-company-just-changed-the-game,Seeking Alpha
+AAPL,AAPL,2023-05-13 12:50:00,One of the Single Most Important Metrics for Apple Investors Just Got Better,,,AAPL,https://www.fool.com/investing/2023/05/13/one-of-the-most-important-metrics-for-apple/,The Motley Fool
+AAPL,AAPL,2023-05-13 14:32:00,Berkshire Hathaway Cuts Chevron Stake by 20.8%. Time to Sell?,,,CVX|BRK.A|BRK.B|AAPL|AXP|BAC|KO|OXY,https://www.fool.com/investing/2023/05/13/berkshire-hathaway-cuts-chevron-stake-by-208-time/,The Motley Fool
+AAPL,AAPL,2023-05-13 16:52:00,The S&P 500 is top-heavy with tech. Here's what that says about future stock-market returns.,,,AAPL|MSFT,https://www.marketwatch.com/story/the-s-p-500-is-top-heavy-with-tech-heres-what-that-says-about-future-stock-market-returns-5b7b2e47,MarketWatch
+AAPL,AAPL,2023-05-13 19:32:00,Disney shows streaming wars are destroying all that was good about streaming,,,DIS|NFLX|AAPL,https://www.marketwatch.com/story/disney-shows-streaming-wars-are-destroying-all-that-was-good-about-streaming-8439e6d,MarketWatch

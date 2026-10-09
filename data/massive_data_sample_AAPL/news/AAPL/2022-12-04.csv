@@ -1,0 +1,12 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-12-04 01:07:56,Why Taboola Stock Skyrocketed This Week,,,TBLA|META|GOOGL|AAPL|GOOG,https://www.fool.com/investing/2022/12/03/why-taboola-stock-is-up-this-week/,The Motley Fool
+AAPL,AAPL,2022-12-04 12:15:00,"1 ETF That Could Turn $200 Per Month Into Nearly $250,000 With Next to No Effort",,,VOO|MSFT|AAPL|AMZN,https://www.fool.com/investing/2022/12/04/1-etf-turn-200-per-month-into-250000-no-effort/,The Motley Fool
+AAPL,AAPL,2022-12-04 12:30:00,Supply Chain Risks Loom for Semiconductors and Tech Infrastructure,,,AAPL,https://www.fool.com/investing/2022/12/04/supply-chain-risks-loom-for-semiconductors-and-tec/,The Motley Fool
+AAPL,AAPL,2022-12-04 12:45:00,3 Stocks Billionaires Have Bought Ahead of 2023,,,AAPL|OKTA|DDOG,https://www.fool.com/investing/2022/12/04/3-stocks-billionaires-have-bought-ahead-of-2023/,The Motley Fool
+AAPL,AAPL,2022-12-04 13:04:00,1 Green Flag and 1 Red Flag for TSMC's Future,,,TSM|BRK.A|BRK.B|AAPL,https://www.fool.com/investing/2022/12/04/1-green-flag-and-1-red-flag-for-tsmcs-future/,The Motley Fool
+AAPL,AAPL,2022-12-04 14:09:00,Is It Time to Buy the Dow Jones' 2 Worst-Performing November Stocks?,,,DIS|AAPL,https://www.fool.com/investing/2022/12/04/is-it-time-to-buy-the-dow-jones-2-worst-performing/,The Motley Fool
+AAPL,AAPL,2022-12-04 14:15:00,2 Top Stocks to Buy In December,,,WBD|AAPL|BRK.A,https://www.fool.com/investing/2022/12/04/2-top-stocks-to-buy-in-december/,The Motley Fool
+AAPL,AAPL,2022-12-04 14:50:44,Apple Quickening Pace Of Moving Production Out Of China: Report,,,AAPL,https://www.benzinga.com/news/22/12/29951546/apple-quickening-pace-of-moving-production-out-of-china-report,Benzinga
+AAPL,AAPL,2022-12-04 16:01:00,This Famed Finance Professor Thinks Meta Platforms Is All Upside. Is He Right?,,,META|AAPL,https://www.fool.com/investing/2022/12/04/this-famed-professor-thinks-meta-is-all-upside/,The Motley Fool
+AAPL,AAPL,2022-12-04 17:49:49,FBI Says China Could Use TikTok For 'Influence Operations' Against Americans,,,AAPL|GOOGL,https://www.benzinga.com/general/entertainment/22/12/29951199/fbi-says-china-could-use-tiktok-for-influence-operations-against-americans,Benzinga
+AAPL,AAPL,2022-12-04 21:21:32,"Musk Says Apple Has 'Fully Resumed' Advertising On Twitter, This E-Commerce Giant Set To Follow Suit",,,AAPL|AMZN,https://www.benzinga.com/news/22/12/29951860/musk-says-apple-has-fully-resumed-advertising-on-twitter-this-e-commerce-giant-set-to-follow-suit,Benzinga

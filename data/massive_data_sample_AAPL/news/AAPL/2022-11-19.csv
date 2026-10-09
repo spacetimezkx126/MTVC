@@ -1,0 +1,7 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-11-19 06:47:57,SPX: A Rallying Stock Market Is Bearish,,,AAPL|AMZN|GOOG|GOOGL|NKLA|PLTR|PTON|TSLA,https://seekingalpha.com/article/4559201-spx-a-rallying-stock-market-is-bearish,Seeking Alpha
+AAPL,AAPL,2022-11-19 07:35:23,Alphabet Vs. Meta Platforms: Which Stock Is The Better Investment?,,,AAPL|AMZN|BABA|QQQ|XLC|XLK|GOOG|GOOGL|META,https://seekingalpha.com/article/4559206-alphabet-vs-meta-platforms-which-stock-is-the-better-investment,Seeking Alpha
+AAPL,AAPL,2022-11-19 11:00:15,Wall Street Breakfast: What Moved Markets,,,META|TSLA|XOM|CVX|BTU|ARCH|ARLP|CEIX|WMT|MCD|KR|TGT|LMT|RTX|NOC|GD|DWAC|PHUN|RUM|FOX|FOXA|NWS|NWSA|BRK.A|BRK.B|TSM|IBM|AAPL|ROST|JKHY|LNC|ENPH|CSCO|AAP|ALB|COF|LYV|ALGN,https://seekingalpha.com/article/4559199-wall-street-breakfast-what-moved-markets,Seeking Alpha
+AAPL,AAPL,2022-11-19 11:41:00,5 Signs You May Have a Recession-Proof Stock,,,AAPL|KO|WMT|MA|V|CVS|PGR|D,https://www.fool.com/investing/2022/11/19/5-signs-you-may-have-a-recession-proof-stock/,The Motley Fool
+AAPL,AAPL,2022-11-19 13:45:00,2 Top Advertising Technology Stocks to Buy Now,,,TTD|GOOGL|AAPL|GOOG|MGNI|DV,https://www.fool.com/investing/2022/11/19/2-top-advertising-technology-stocks-to-buy-now/,The Motley Fool
+AAPL,AAPL,2022-11-19 20:46:10,4 High-Yield Dividends to Buy Today,,,VZ|AAPL|DIS|SPG|MODG|EPR|NEP,https://www.fool.com/investing/2022/11/19/4-dividends-to-buy-today/,The Motley Fool

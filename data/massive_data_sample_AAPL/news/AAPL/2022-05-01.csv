@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-05-01 08:47:10,Paramount Global: 13.86% Yielding Shares No Longer A Trap,,,AAPL|AMZN|DIS|NFLX|PARA|PARAA|PARAP,https://seekingalpha.com/article/4505622-paramount-global-shares-no-longer-trap,Seeking Alpha
+AAPL,AAPL,2022-05-01 10:35:26,Alibaba: The Great Wall Of Worry Is Crumbling,,,AAPL|AMZN|BIDU|DIDI|JD|KWEB|PDD|BABA,https://seekingalpha.com/article/4505635-alibaba-stock-china-great-wall-worry-crumbling,Seeking Alpha
+AAPL,AAPL,2022-05-01 12:27:00,"3 Stocks To Watch In The Coming Week: Advanced Micro Devices, Airbnb, Moderna",,,AMZN|AAPL|AMD|INTC|ABNB|MRNA|PFE,https://www.investing.com/analysis/3-stocks-to-watch-in-the-coming-week-advanced-micro-devices-airbnb-moderna-200623246,Investing.com
+AAPL,AAPL,2022-05-01 12:55:00,Spotify Stock Sell-Off: The Truth Behind the Headlines,,,SPOT|AAPL,https://www.fool.com/investing/2022/05/01/spotify-stock-sell-off-the-truth-behind-the-headli/,The Motley Fool
+AAPL,AAPL,2022-05-01 19:00:00,3 Lessons From What Buffett Didn't Say at Berkshire Hathaway's Shareholder Meeting,,,BRK.B|BRK.A|AAPL|CVX,https://www.fool.com/investing/2022/05/01/3-top-takeaways-buffett-berkshire-hathaway/,The Motley Fool

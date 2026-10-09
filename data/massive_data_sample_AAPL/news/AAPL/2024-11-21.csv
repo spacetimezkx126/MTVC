@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-11-21 13:30:00,Artificial General Intelligence Is Coming: 1 Unstoppable Vanguard ETF to Buy Now,positive,"The article mentions Apple as another top holding in the Vanguard Information Technology ETF, suggesting its importance in the AI ecosystem.",MSFT|AAPL|NVDA|VGT,https://www.fool.com/investing/2024/11/21/artificial-general-intelligence-is-coming-1-unstop/?source=iedfolrf0000001,The Motley Fool

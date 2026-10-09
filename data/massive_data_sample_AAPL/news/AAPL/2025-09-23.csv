@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-09-23 14:32:00,These Under-$10 Stocks Are Up 100%+ This Quarter - And Some Still Have Room to Run,positive,Mentioned as an example of a successful stock that previously traded at low share prices,AAPL|AMD|MNST|F|FpB|FpC|FpD|BRK.A|BRK.B,https://www.investing.com/analysis/these-under10-stocks-are-up-100-this-quarter--and-some-still-have-room-to-run-200667317,Investing.com

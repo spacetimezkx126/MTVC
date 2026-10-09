@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-02-01 10:45:00,Apple Stock Analysis: Buy or Sell?,positive,"The article mentions that Apple's $725 billion investment is fueling its growth, which suggests a positive outlook for the company.",AAPL|BRK.A|BRK.B,https://www.fool.com/investing/2025/02/01/apple-stock-analysis-buy-or-sell/?source=iedfolrf0000001,The Motley Fool

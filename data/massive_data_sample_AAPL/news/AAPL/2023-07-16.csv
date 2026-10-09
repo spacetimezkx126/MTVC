@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-07-16 09:30:00,Warren Buffett Doesn't Diversify Investments Across Stocks. Should You?,,,AAPL|BRK.A|BRK.B,https://www.fool.com/investing/2023/07/16/buffett-doesnt-diversify-investments-should-you/,The Motley Fool
+AAPL,AAPL,2023-07-16 10:00:00,The S&P 500 Has Grown Top-Heavy. Here's Why That's a Problem.,,,SPY|AAPL|MSFT,https://www.fool.com/investing/2023/07/16/sp-500-grown-top-heavy-heres-why-problem/,The Motley Fool
+AAPL,AAPL,2023-07-16 16:30:00,2 Hot Stocks to Buy and Hold Until You Retire,,,AAPL|AMZN,https://www.fool.com/investing/2023/07/16/2-hot-stocks-to-buy-and-hold-until-you-retire/,The Motley Fool

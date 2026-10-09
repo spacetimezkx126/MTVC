@@ -1,0 +1,11 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-04-21 09:06:00,76% of Warren Buffett's $344 Billion Portfolio Is Invested in These 5 Stocks,,,AAPL|BRK.A|BRK.B|BAC|KO|CVX|AXP,https://www.fool.com/investing/2023/04/21/76-warren-buffett-portfolio-invested-in-5-stocks/,The Motley Fool
+AAPL,AAPL,2023-04-21 09:15:00,3 Ultra-Growth Stocks That Are Leading the Market Recovery,,,AMZN|AAPL|DIS,https://www.fool.com/investing/2023/04/21/3-ultra-growth-stocks-that-are-leading-the-market/,The Motley Fool
+AAPL,AAPL,2023-04-21 09:25:00,3 Red Flags for Alphabet's Future,,,GOOGL|AAPL|MSFT|GOOG,https://www.fool.com/investing/2023/04/21/3-red-flags-for-alphabet-future/,The Motley Fool
+AAPL,AAPL,2023-04-21 10:19:00,"A Fed pause looms. Be careful what you wish for, say these analysts.",,,TSLA|PG|SLB|PPG|BBBY|MULN|BUD|AMC|GME|NIO|AAPL|NVDA|AMZN,https://www.marketwatch.com/story/a-fed-pause-looms-be-careful-what-you-wish-for-say-these-analysts-e883dab3,MarketWatch
+AAPL,AAPL,2023-04-21 15:24:00,Why does the stock market rise when there’s so much bad news?,,,JPM|SCHW|TSLA|AAPL|GS,https://www.marketwatch.com/story/why-does-the-stock-market-rise-when-theres-so-much-bad-news-def6551f,MarketWatch
+AAPL,AAPL,2023-04-21 15:35:00,Bear Market Champions: 2 Resilient Stocks to Weather Any Storm,,,TMO|AAPL,https://www.fool.com/investing/2023/04/21/bear-market-champions-resilient-stocks-to-weather/,The Motley Fool
+AAPL,AAPL,2023-04-21 16:52:00,Tech Rally Faces Major Test Next Week as ‘FAAMG’ Earnings Loom,,,AAPL|MSFT|GOOGL|AMZN|META|SNAP,https://www.investing.com/analysis/tech-rally-faces-major-test-next-week-as-faamg-earnings-loom-200637428,Investing.com
+AAPL,AAPL,2023-04-21 17:49:52,Tesla Stock: Why the Market Has Got It All Wrong,,,TSLA|AAPL|NVDA|FSR|LCID|RIVN,https://www.fool.com/investing/2023/04/21/tesla-stock-why-the-market-has-got-it-all-wrong/,The Motley Fool
+AAPL,AAPL,2023-04-21 20:49:00,"Apple’s new savings account is more bad news for banks, Moody’s says",,,AAPL|GS,https://www.marketwatch.com/story/apples-new-savings-account-is-more-bad-news-for-banks-moodys-says-8010e84,MarketWatch
+AAPL,AAPL,2023-04-21 20:53:00,Google puts 80-acre megacampus on hold: report,,,GOOGL|GOOG|AAPL,https://www.marketwatch.com/story/google-puts-80-acre-megacampus-on-hold-report-5ec06539,MarketWatch

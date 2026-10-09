@@ -1,0 +1,13 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-08-05 09:47:00,The Unfortunate Truth About Maxing Out Your 401(k),,,MSFT|AAPL|AMZN,https://www.fool.com/retirement/2023/08/05/the-unfortunate-truth-about-maxing-out-your-401k/,The Motley Fool
+AAPL,AAPL,2023-08-05 09:50:00,Why I Just Loaded Up on Warren Buffett's Second-Biggest Holding,,,BRK.B|BRK.A|BAC|AAPL|KO,https://www.fool.com/investing/2023/08/05/why-i-just-loaded-up-on-warren-buffetts-second-big/,The Motley Fool
+AAPL,AAPL,2023-08-05 10:01:00,2 Warren Buffett Super Stocks to Buy Hand Over Fist in August,,,AAPL|BAC|V,https://www.fool.com/investing/2023/08/05/2-warren-buffett-super-stocks-to-buy-hand-over-fis/,The Motley Fool
+AAPL,AAPL,2023-08-05 11:00:00,3 Red-Hot Tech Stocks,,,NVDA|AAPL|META|SHOP,https://www.fool.com/investing/2023/08/05/3-red-hot-tech-stocks/,The Motley Fool
+AAPL,AAPL,2023-08-05 11:52:13,Wall Street Breakfast: What Moved Markets,,,AAPL|AMZN|ANET|GPN|WBD|CEG|CTSH|DXC|FTNT|GNRC|SEDG|PAYC,https://seekingalpha.com/article/4624379-wall-street-breakfast-what-moved-markets,Seeking Alpha
+AAPL,AAPL,2023-08-05 12:20:00,74% of Warren Buffett's Portfolio Is in 5 Stocks -- but Only This 1 Is Beating the Market,,,AAPL|BAC|KO|CVX|AXP,https://www.fool.com/investing/2023/08/05/74-of-warren-buffetts-portfolio-is-in-5-stocks-but/,The Motley Fool
+AAPL,AAPL,2023-08-05 12:30:00,Motley Fool Rule Breaker Investing Fundamentals,,,AAPL|TSLA|ISRG,https://www.fool.com/retirement/2023/08/05/motley-fool-rule-breaker-investing-fundamentals/,The Motley Fool
+AAPL,AAPL,2023-08-05 14:15:00,Will Tesla Follow in Apple's Footsteps?,,,TSLA|AAPL,https://www.fool.com/investing/2023/08/05/will-tesla-follow-in-apples-footsteps/,The Motley Fool
+AAPL,AAPL,2023-08-05 15:51:41,Apple's $3 Trillion Crown Slips As Disappointing Sales Take Toll,,,AAPL,https://www.benzinga.com/news/23/08/33586653/apples-3-trillion-crown-slips-as-disappointing-sales-take-toll,Benzinga
+AAPL,AAPL,2023-08-05 19:12:00,U.S. and Europe are finding that breaking up with China is hard to do,,,AAPL|JPM,https://www.marketwatch.com/story/u-s-and-europe-are-finding-that-breaking-up-with-china-is-hard-to-do-37cbc542,MarketWatch
+AAPL,AAPL,2023-08-05 19:27:29,Berkshire Hathaway's Vast Earnings Beat: I'm Buying,,,AAPL|BRK.A|OXY|BRK.B,https://seekingalpha.com/article/4624483-berkshire-hathaways-vast-earnings-beat-buying,Seeking Alpha
+AAPL,AAPL,2023-08-05 19:52:00,CEOs say their companies can't afford a cold war between the U.S. and China,,,AAPL,https://www.marketwatch.com/story/ceos-say-their-companies-cant-afford-a-cold-war-between-the-u-s-and-china-8e17b1d6,MarketWatch

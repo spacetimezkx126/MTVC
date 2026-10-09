@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-06-04 06:34:14,Spotify: A Long-Run Loser,,,AAPL|AMZN|GOOG|GOOGL|IHRT|SIRI|SPOT,https://seekingalpha.com/article/4516446-spotify-a-long-run-loser,Seeking Alpha
+AAPL,AAPL,2022-06-04 10:00:00,These Stocks Have the Advantage in the Advertising Revolution,,,FB|MSFT|GOOGL|AAPL|GOOG|ATVI|SHOP|SNAP|U,https://www.fool.com/investing/2022/06/04/these-stocks-have-the-advantage-in-the-advertising/,The Motley Fool
+AAPL,AAPL,2022-06-04 10:15:00,"How Advertising's Massive Shift Affects Facebook, Snapchat, and Twitter",,,AAPL|GOOGL|FB|KO|GOOG|SHOP|SNAP|ROKU|U,https://www.fool.com/investing/2022/06/04/how-advertisings-massive-shift-affects-facebook-sn/,The Motley Fool

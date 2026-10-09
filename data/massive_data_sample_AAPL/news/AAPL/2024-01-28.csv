@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-01-28 07:29:00,Nearly 50% of Warren Buffett-Led Berkshire Hathaway's $369 Billion Portfolio Is Invested in Only 1 Stock,,,AAPL,https://www.fool.com/investing/2024/01/28/half-warren-buffett-berkshire-portfolio-1-stock/,The Motley Fool
+AAPL,AAPL,2024-01-28 11:03:00,"1 Stock to Buy, 1 Stock to Sell This Week: Microsoft, General Motors",,,MSFT|GM|GOOGL|AAPL|AMZN|META|AMD|QCOM|BA|UPS|XOM|CVX|MA|SBUX|PFE|NVO|XLK,https://www.investing.com/analysis/1-stock-to-buy-1-stock-to-sell-this-week-microsoft-general-motors-200645550,Investing.com
+AAPL,AAPL,2024-01-28 17:17:00,Here's Why Netflix's Deal With TKO Is a Game-Changer for Both Stocks,,,NFLX|DIS|AAPL|AMZN|TKO,https://www.fool.com/investing/2024/01/28/heres-why-netflixs-deal-with-tko-is-a-game-changer/,The Motley Fool

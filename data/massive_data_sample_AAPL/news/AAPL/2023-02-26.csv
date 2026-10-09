@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-02-26 10:51:00,"Warren Buffett's, Bill Ackman's, and Michael Burry's Portfolios All Have 1 Thing In Common",,,BRK.A|BRK.B|BAC|AAPL|CVX|LOW|GEO,https://www.fool.com/investing/2023/02/26/warren-buffett-bill-ackman-and-michael-burry-port/,The Motley Fool
+AAPL,AAPL,2023-02-26 12:15:00,Better Buy: Apple Stock vs. Disney Stock,,,AAPL|DIS,https://www.fool.com/investing/2023/02/26/better-buy-apple-stock-vs-disney-stock/,The Motley Fool
+AAPL,AAPL,2023-02-26 15:30:00,2 Monster Metaverse Stocks to Buy for the Long Haul,,,AAPL|U,https://www.fool.com/investing/2023/02/26/2-monster-metaverse-stocks-to-buy-for-the-long-hau/,The Motley Fool

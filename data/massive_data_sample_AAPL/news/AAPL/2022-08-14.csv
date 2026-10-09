@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-08-14 10:00:00,3 High-Yield Dividend Stocks That Are Passive Income Machines,,,MMM|MSFT|AAPL|ABB|PG|NKE|ROLL|BEP|BEPC,https://www.fool.com/investing/2022/08/14/3-high-yield-dividend-stocks-that-are-passive-inco/,The Motley Fool
+AAPL,AAPL,2022-08-14 11:00:00,"3 Semiconductor Stocks to Buy Now, Including Nvidia",,,NVDA|MU|AAPL|KLIC|SOXX,https://www.fool.com/investing/2022/08/14/3-semiconductor-stocks-to-buy-now-including-nvidia/,The Motley Fool
+AAPL,AAPL,2022-08-14 13:00:00,What Investors Need To Know About The 'Inflation Reduction Act',,,AAPL|ALB|AMLP|AMZN|AY|BEP|BEPC|CWEN|CWEN.A|ENFR|EPD|ET|GOOG|GOOGL|LAC|META|MLPA|MLPX|MSFT|NEP|PAA|SPY|TSLA|VGT,https://seekingalpha.com/article/4534166-what-investors-need-know-about-inflation-reduction-act,Seeking Alpha
+AAPL,AAPL,2022-08-14 14:30:00,Here's Why Netflix Stock May Be Riskier Than You Think,,,NFLX|DIS|CMCSA|AAPL|AMZN|PARA|CNK|AMC|ROKU|WBD,https://www.fool.com/investing/2022/08/14/netflix-stock-may-be-riskier-than-you-think/,The Motley Fool
+AAPL,AAPL,2022-08-14 22:00:00,Will Stock Buyback Tax Hurt Apple Shareholders?,,,AAPL,https://seekingalpha.com/article/4534207-will-stock-buyback-tax-hurt-apple-shareholders,Seeking Alpha

@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-02-10 17:14:47,"China Sets Sights On Apple, Nvidia And Other US Tech Companies As Trade Tensions Rise",negative,"Chinese regulators have started taking a closer look at Apple in recent weeks, as some view Apple's fees as 'unreasonably high' and believe its app rules could hurt competition.",AAPL|NVDA|GOOG|GOOGL|XLK|MAGS,https://www.benzinga.com/news/global/25/02/43600852/china-sets-sights-on-us-tech-companies-as-trade-tensions-rise,Benzinga

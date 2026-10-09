@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-12-15 11:30:00,"Despite Recent News, Analysts Still Say Artificial Intelligence Stock Nvidia Is a Buy. Here's Why.",neutral,"Apple is mentioned as one of the big tech companies that Nvidia briefly fell behind in market cap, but the article does not provide any specific insights about Apple.",NVDA|AAPL|MSFT,https://www.fool.com/investing/2024/12/15/analysts-artificial-intelligence-nvidia-nvda-ai/?source=iedfolrf0000001,The Motley Fool

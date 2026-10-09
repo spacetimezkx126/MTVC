@@ -1,0 +1,13 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-06-17 00:00:00,Apple: Intelligence Failure,,,AAPL,https://seekingalpha.com/article/4699462-apple-intelligence-failure,Seeking Alpha
+AAPL,AAPL,2024-06-17 03:07:19,The Soft-Landing Theme Is Collapsing,,,IWM|SPY|KRE|SBUX|MCD|XLY|AAPL|AVGO|NVDA|META|GOOGL|GOOG,https://seekingalpha.com/article/4699518-the-soft-landing-theme-is-collapsing,Seeking Alpha
+AAPL,AAPL,2024-06-17 07:41:00,2 Hypergrowth Tech Stocks to Buy in 2024 and Beyond,,,NVDA|AAPL,https://www.fool.com/investing/2024/06/17/2-hypergrowth-tech-stocks-to-buy-in-2024/,The Motley Fool
+AAPL,AAPL,2024-06-17 08:40:00,Will Adobe Be Worth More Than Apple by 2030?,,,ADBE|AAPL,https://www.fool.com/investing/2024/06/17/will-adobe-be-worth-more-than-apple-by-2030/,The Motley Fool
+AAPL,AAPL,2024-06-17 09:21:00,63% of Warren Buffett's $388 Billion Portfolio Is Invested in These 3 Magnificent Stocks,,,AAPL|BRK.A|BRK.B|BAC|AXP,https://www.fool.com/investing/2024/06/17/63-warren-buffett-portfolio-invested-in-3-stocks/,The Motley Fool
+AAPL,AAPL,2024-06-17 10:00:00,1 Stock I Wouldn't Touch With a 10-Foot Pole,,,GOOGL|AAPL|GOOG,https://www.fool.com/investing/2024/06/17/1-stock-i-wouldnt-touch-with-a-10-foot-pole/,The Motley Fool
+AAPL,AAPL,2024-06-17 10:20:05,Is WisdomTree U.S. Total Dividend ETF (DTD) a Strong ETF Right Now?,,,DTD|JPM|AAPL|MSFT|VTV|IWD,https://www.zacks.com/stock/news/2288899/is-wisdomtree-us-total-dividend-etf-dtd-a-strong-etf-right-now,Zacks Investment Research
+AAPL,AAPL,2024-06-17 10:20:06,Should iShares S&P 100 ETF (OEF) Be on Your Investing Radar?,,,OEF|AAPL|MSFT|NVDA|SPY|VOO,https://www.zacks.com/stock/news/2288893/should-ishares-sp-100-etf-oef-be-on-your-investing-radar,Zacks Investment Research
+AAPL,AAPL,2024-06-17 10:20:07,Is John Hancock Multifactor Large Cap ETF (JHML) a Strong ETF Right Now?,,,JHML|AMZN|AAPL|MSFT|SPY|VOO,https://www.zacks.com/stock/news/2288890/is-john-hancock-multifactor-large-cap-etf-jhml-a-strong-etf-right-now,Zacks Investment Research
+AAPL,AAPL,2024-06-17 12:00:00,3 Best Inverse/Leveraged ETF Areas of Last Week,,,AAPL|MSFT|SOXL|USD|AAPB|AAPU|NVDU|NVDX,https://www.zacks.com/stock/news/2288934/3-best-inverseleveraged-etf-areas-of-last-week,Zacks Investment Research
+AAPL,AAPL,2024-06-17 15:44:00,Alphabet (GOOGL) Rides on Strength in Google Services Segment,,,AAPL|MSFT|GOOGL|PTON,https://www.zacks.com/stock/news/2289322/alphabet-googl-rides-on-strength-in-google-services-segment,Zacks Investment Research
+AAPL,AAPL,2024-06-17 15:58:00,Tech ETFs Faceoff: Apple Vs Microsoft,,,AAPL|MSFT|XLK|FTEC|IYW|VGT,https://www.zacks.com/stock/news/2289363/tech-etfs-faceoff-apple-vs-microsoft,Zacks Investment Research

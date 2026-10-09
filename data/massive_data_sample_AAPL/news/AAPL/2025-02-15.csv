@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-02-15 08:14:00,"Surprise: McDonald's Has Higher Profit Margins Than Tesla, Apple, or Netflix",neutral,"The article compares McDonald's profit margins to those of Apple, but does not provide any additional commentary or insights about Apple specifically.",MCD|TSLA|AAPL|NFLX,https://www.fool.com/investing/2025/02/15/surprise-mcdonalds-has-higher-profit-margins-than/?source=iedfolrf0000001,The Motley Fool

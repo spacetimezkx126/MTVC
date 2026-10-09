@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-09-17 09:41:00,3 Growth Stocks Down 49.6% to 79.9% to Buy Now and Hold Forever,,,SHOP|AAPL|AMZN|SOFI|DUOL,https://www.fool.com/investing/2022/09/17/3-growth-stocks-to-buy-now-and-hold-forever/,The Motley Fool
+AAPL,AAPL,2022-09-17 13:53:00,3 Stocks You Can Keep Forever,,,ABT|AAPL|COST,https://www.fool.com/investing/2022/09/17/3-stocks-you-can-keep-forever/,The Motley Fool
+AAPL,AAPL,2022-09-17 15:08:00,3 Stocks to Buy During a Recession,,,WSO|AAPL|AMZN|HON|DE|CGNX|PTC|FMC|FTV|CTVA,https://www.fool.com/investing/2022/09/17/3-stocks-to-buy-during-a-recession/,The Motley Fool
+AAPL,AAPL,2022-09-17 16:52:00,The Meta meltdown: This chart shows Facebook's fall from grace among the most valuable U.S. companies,,,META|V|AAPL|MSFT|GOOGL|GOOG|AMZN|XOM|TSLA|BRK.A|UNH|JNJ|NVDA,https://www.marketwatch.com/story/the-meta-meltdown-this-chart-shows-facebooks-fall-from-grace-among-the-most-valuable-u-s-companies-11663111637,MarketWatch
+AAPL,AAPL,2022-09-17 17:21:00,DOJ antitrust cop hammers ‘whack-a-mole’ approach to reining in Big Tech,,,GOOGL|AMZN|META|AAPL|MSFT|YELP|NWSA,https://www.marketwatch.com/story/doj-antitrust-cop-hammers-whack-a-mole-approach-to-reining-in-big-tech-11663435266,MarketWatch

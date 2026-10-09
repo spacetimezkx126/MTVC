@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-04-10 11:00:00,3 Powerful Stocks That Can Beat Inflation,,,DIS|TSM|AAPL|AMT|INTC|NVDA,https://www.fool.com/investing/2022/04/10/3-powerful-stocks-that-can-beat-inflation/,The Motley Fool
+AAPL,AAPL,2022-04-10 13:00:00,What Does Warren Buffett See in HP?,,,HPQ|BRK.A|BRK.B|AAPL|MS,https://www.fool.com/investing/2022/04/10/what-does-warren-buffett-see-in-hp/,The Motley Fool
+AAPL,AAPL,2022-04-10 18:46:00,Walt Disney World's latest attraction may appeal to its own workers: Affordable housing,,,DIS|CMCSA|AAPL|GOOGL|FB,https://www.marketwatch.com/story/disneys-latest-florida-attraction-affordable-housing-11649275092,MarketWatch

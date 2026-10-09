@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-10-02 08:45:11,Apple: Understanding The BofA Downgrade,,,AAPL,https://seekingalpha.com/article/4544228-apple-understanding-the-bofa-downgrade,Seeking Alpha
+AAPL,AAPL,2022-10-02 11:56:49,"It's Not Over Until It's Over For Apple, But It's Nearly Over (Technical Analysis)",,,AAPL,https://seekingalpha.com/article/4544249-its-not-over-until-its-over-for-apple-but-its-nearly-over-technical-analysis,Seeking Alpha
+AAPL,AAPL,2022-10-02 13:45:00,Will Amazon Be Worth More Than Apple by 2025?,,,AAPL|AMZN,https://www.fool.com/investing/2022/10/02/will-amazon-be-worth-more-than-apple-by-2025/,The Motley Fool
+AAPL,AAPL,2022-10-02 14:00:00,3 Stocks to Avoid This Week,,,AAPL|GFI|LEN|RAD|CBRL|CAG,https://www.fool.com/investing/2022/10/02/3-stocks-to-avoid-this-week/,The Motley Fool
+AAPL,AAPL,2022-10-02 16:57:00,The No. 1 Quality That Top Stocks Share (and It's Not Even Close),,,UPS|AAPL|FDX,https://www.fool.com/investing/2022/10/02/the-no-1-quality-that-top-stocks-share-and-its-not/,The Motley Fool

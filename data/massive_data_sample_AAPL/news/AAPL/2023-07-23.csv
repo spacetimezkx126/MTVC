@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-07-23 04:19:45,Apple's Market Cap Is Higher Than The 100 Largest Mining Stocks Combined,,,PICK|AAPL,https://seekingalpha.com/article/4619005-apple-market-cap-higher-than-100-largest-mining-stocks-combined,Seeking Alpha
+AAPL,AAPL,2023-07-23 11:10:00,3 Things About Microsoft Stock That Smart Investors Know,,,MSFT|AAPL|PANW,https://www.fool.com/investing/2023/07/23/3-things-about-microsoft-stock-that-smart-investor/,The Motley Fool
+AAPL,AAPL,2023-07-23 13:30:00,"The ""Magnificent Seven"" Stocks Are Soaring Toward a Bull Market: 2 Ideal Index Funds to Buy Now",,,AAPL|MSFT|GOOGL|AMZN|NVDA|META|TSLA|MS|VOO|FORR|GOOG|MGK,https://www.fool.com/investing/2023/07/23/magnificent-seven-stocks-2-index-funds-to-buy/,The Motley Fool

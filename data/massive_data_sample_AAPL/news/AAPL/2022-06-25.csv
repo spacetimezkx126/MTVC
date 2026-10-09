@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-06-25 02:32:04,Lessons From the Great Depression,,,BRK.A|MSFT|GOOGL|AAPL|BRK.B|MA|JNJ|ORCL|DPZ|GOOG,https://www.fool.com/investing/2022/06/24/lessons-from-the-great-depression/,The Motley Fool
+AAPL,AAPL,2022-06-25 09:45:00,Shopify Stock-Split: 3 E-Commerce Companies to Buy Now,,,UPS|AMZN|WMT|TGT|AAPL|PBI|MELI|ZBRA|SHOP|ETSY|CPNG|GLBE,https://www.fool.com/investing/2022/06/25/shopify-stock-split-3-e-commerce-companies-to-buy/,The Motley Fool
+AAPL,AAPL,2022-06-25 11:53:00,My Favorite Investing Lesson from Warren Buffett,,,BRK.A|SPY|BRK.B|AAPL,https://www.fool.com/investing/2022/06/25/my-favorite-investing-lesson-from-warren-buffett/,The Motley Fool
+AAPL,AAPL,2022-06-25 11:55:00,Warren Buffett's 4 Rules for Investing in a Bear Market,,,BRK.A|AAPL|BRK.B,https://www.fool.com/investing/2022/06/25/warren-buffett-4-investing-rules-bear-market/,The Motley Fool
+AAPL,AAPL,2022-06-25 15:53:00,2 Red Flags for Meta Platforms' Future,,,META|AAPL,https://www.fool.com/investing/2022/06/25/2-red-flags-for-meta-platforms-future/,The Motley Fool

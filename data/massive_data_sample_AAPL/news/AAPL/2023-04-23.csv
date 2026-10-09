@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-04-23 09:52:00,3 Stocks Warren Buffett Would Probably Tell You to Sell -- and 1 He'd Likely Recommend Buying,,,AAPL|BRK.A|BRK.B|TSM|NFLX,https://www.fool.com/investing/2023/04/23/stocks-warren-buffett-probably-tell-sell-buy/,The Motley Fool
+AAPL,AAPL,2023-04-23 12:22:00,"1 Stock to Buy, 1 Stock to Sell This Week: McDonald’s, Intel",,,MSFT|GOOGL|AMZN|META|SNAP|KO|PEP|BA|XOM|CVX|CAT|GE|MMM|VZ|V|MA|MRK|LLY|AAL|LUV|UPS|MCD|INTC|AMD|NVDA|TSM|AAPL,https://www.investing.com/analysis/1-stock-to-buy-1-stock-to-sell-this-week-mcdonalds-intel-200637450,Investing.com
+AAPL,AAPL,2023-04-23 13:00:00,3 AI Stocks That Could Go Parabolic,,,META|MSFT|NVDA|AAPL|SMCI|LRCX,https://www.fool.com/investing/2023/04/23/3-ai-stocks-that-could-go-parabolic/,The Motley Fool
+AAPL,AAPL,2023-04-23 14:46:00,Here's What's Behind Meta Stock's 76% Gain This Year,,,AAPL|META,https://www.fool.com/investing/2023/04/23/heres-whats-behind-meta-stocks-76-gain-this-year/,The Motley Fool

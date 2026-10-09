@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-03-06 10:51:00,3 Stocks That Could Be Worth More Than Apple by 2035,,,AMZN|AAPL|NVDA|ABNB,https://www.fool.com/investing/2022/03/06/3-stocks-could-be-worth-more-than-apple-by-2035/,The Motley Fool
+AAPL,AAPL,2022-03-06 11:15:00,This Potentially Revolutionary Green Energy Stock Is Not Without Risks,,,BE|AAPL|FCEL|PLUG|NKLA|BLDP,https://www.fool.com/investing/2022/03/06/this-potentially-revolutionary-green-energy-stock/,The Motley Fool
+AAPL,AAPL,2022-03-06 11:30:00,Nvidia Is Crushing Records. So Why Is Its Stock Down?,,,NVDA|AAPL|U,https://www.fool.com/investing/2022/03/06/nvidia-is-crushing-records-so-why-is-its-stock-dow/,The Motley Fool

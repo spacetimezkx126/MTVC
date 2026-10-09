@@ -1,0 +1,3 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-09-04 11:59:00,2 Trillion-Dollar Growth Stocks to Buy Hand Over Fist Right Now,,,AAPL|MSFT,https://www.fool.com/investing/2022/09/04/2-trillion-dollar-growth-stocks-buy-hand-fist-now/,The Motley Fool
+AAPL,AAPL,2022-09-04 19:18:23,Amazon's iRobot Deal Is Now Facing Tough Antitrust Review By Federal Trade Commission,,,AAPL|AMZN|IRBT|MSFT|GOOGL|META,https://www.benzinga.com/news/22/09/28744786/amazons-vacuum-maker-irobot-deal-is-now-facing-tough-antitrust-review,Benzinga

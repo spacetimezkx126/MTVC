@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-03-26 10:30:00,Where Will PayPal Be in 1 Year?,,,PYPL|AAPL|SQ,https://www.fool.com/investing/2023/03/26/where-will-paypal-be-in-1-year/,The Motley Fool
+AAPL,AAPL,2023-03-26 10:45:00,3 No-Brainer Warren Buffett Stocks to Buy Right Now,,,AAPL|KO|BRK.A|AXP|BRK.B,https://www.fool.com/investing/2023/03/26/3-no-brainer-buffett-stocks-to-buy-right-now/,The Motley Fool
+AAPL,AAPL,2023-03-26 18:25:00,Is Blockbuster really coming back?,,,NFLX|DIS|AAPL|DISH,https://www.marketwatch.com/story/is-blockbuster-really-coming-back-7f7f9563,MarketWatch

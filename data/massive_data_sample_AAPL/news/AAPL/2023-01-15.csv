@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-01-15 08:39:32,I'll Avoid These Sectors In 2023,,,SU|TTE|AAPL|ROKU|PLTR|ABNB|APRN|DBX|LYFT|PTON|SNAP|UBER|Z|CRM|QCOM|SWKS|GPN|CSCO|MSFT|BMY|MRK|NVS|ABBV|MDT|BAX|FCX|WHR|TSLA|AMZN|LOW|PINS,https://seekingalpha.com/article/4570024-avoid-these-sectors-in-2023,Seeking Alpha
+AAPL,AAPL,2023-01-15 13:20:00,2 Cheap Tech Stocks to Buy Right Now,,,DELL|AAPL|INTC|AMD|KLIC|IT,https://www.fool.com/investing/2023/01/15/2-cheap-tech-stocks-to-buy-right-now/,The Motley Fool
+AAPL,AAPL,2023-01-15 13:24:00,Take Warren Buffett's Advice: Buy Stocks With These 3 Attributes,,,BRK.A|BRK.B|BAC|AAPL|KO|AXP,https://www.fool.com/investing/2023/01/15/take-warren-buffetts-advice-buy-stocks-with-these/,The Motley Fool

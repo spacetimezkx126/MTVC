@@ -1,0 +1,11 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-09-17 01:39:00,Apple's iPhone 15 vs. iPhone 13: Is the upgrade worth it?,,,SBUX|AAPL|META|BBY|VZ|TMUS|T,https://www.marketwatch.com/story/apples-iphone-15-vs-iphone-13-is-the-upgrade-worth-it-bfd5cd5b,MarketWatch
+AAPL,AAPL,2023-09-17 09:03:00,Warren Buffett's AI Bets: 46.1% of Berkshire Hathaway's $353 Billion Stock Portfolio Is Held in These 2  Artificial Intelligence (AI) Growth Stocks,,,AAPL|BRK.A|BRK.B|BAC|AMZN|AXP,https://www.fool.com/investing/2023/09/17/461-of-warren-buffetts-353-billion-stock-portfolio/,The Motley Fool
+AAPL,AAPL,2023-09-17 09:07:00,"If You Invested $5,000 in Broadcom In 2009, This Is How Much You Would Have Today",,,AVGO|AAPL|VMW,https://www.fool.com/investing/2023/09/17/if-invested-5000-broadcom-2009-how-much-now/,The Motley Fool
+AAPL,AAPL,2023-09-17 11:08:00,"If You Invested $3,000 in Qualcomm in 2021, This Is How Much You Would Have Today",,,QCOM|AAPL,https://www.fool.com/investing/2023/09/17/if-invested-3000-qualcomm-2021-how-much-now/,The Motley Fool
+AAPL,AAPL,2023-09-17 11:10:00,"Can Bitcoin Reach $100,000?",,,MSFT|AAPL|V,https://www.fool.com/investing/2023/09/17/can-bitcoin-reach-100000/,The Motley Fool
+AAPL,AAPL,2023-09-17 13:16:00,Analyst: Apple Stock Could Soar to $240,,,AAPL,https://www.fool.com/investing/2023/09/17/analyst-apple-stock-could-soar-to-240/,The Motley Fool
+AAPL,AAPL,2023-09-17 15:45:00,2 Under-the-Radar Gaming Stocks You Can Buy and Hold for the Next Decade,,,AAPL|NVDA,https://www.fool.com/investing/2023/09/17/2-under-the-radar-gaming-stocks-you-can-buy-and-ho/,The Motley Fool
+AAPL,AAPL,2023-09-17 16:00:00,My Take: 4 Strong Growth Stocks to Buy This Week,,,AMZN|AAPL|MSFT|AMD,https://www.fool.com/investing/2023/09/17/my-take-4-strong-growth-stocks-to-buy-this-week/,The Motley Fool
+AAPL,AAPL,2023-09-17 16:43:10,Is Apple Losing Its Spark? Recent Sales Figures Suggest So.,,,AAPL,https://www.benzinga.com/news/23/09/34659111/is-apple-losing-its-spark-recent-sales-figures-suggest-so,Benzinga
+AAPL,AAPL,2023-09-17 17:03:00,‘iPhones are depreciating devices:’ What's a better deal — buying an iPhone 15 or investing $800 in Apple stock?,,,AAPL|COMP|BAC,https://www.marketwatch.com/story/whats-a-better-deal-an-iphone-15-or-800-in-apple-stock-7eb77214,MarketWatch

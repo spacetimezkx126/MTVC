@@ -1,0 +1,10 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-10-08 10:00:00,Did Warren Buffett Go Bargain Hunting During the Recent Market Meltdown?,,,BRK.A|BRK.B|HPQ|AAPL|C|GM|MKL|OXY|CE|ALLY,https://www.fool.com/investing/2022/10/08/did-buffett-bargain-hunt-during-market-meltdown/,The Motley Fool
+AAPL,AAPL,2022-10-08 10:34:00,3 Dividend-Paying Tech Stocks to Buy In October,,,MSFT|AAPL|TSM|INTU,https://www.fool.com/investing/2022/10/08/3-dividend-paying-tech-stocks-to-buy-in-october/,The Motley Fool
+AAPL,AAPL,2022-10-08 10:49:00,"Got $1,000? 5 Buffett Stocks to Buy and Hold Forever.",,,AMZN|BRK.A|BRK.B|BAC|AAPL|MSFT|GOOGL|KO|SNOW,https://www.fool.com/investing/2022/10/08/got-1000-5-buffett-stocks-to-buy-and-hold-forever/,The Motley Fool
+AAPL,AAPL,2022-10-08 11:05:00,This Top Tech Stock Is Now Yielding a 3.5% a Year Dividend,,,GRMN|AAPL|PTON,https://www.fool.com/investing/2022/10/08/this-top-tech-stock-is-now-yielding-a-35-a-year-di/,The Motley Fool
+AAPL,AAPL,2022-10-08 11:13:00,"Apple's CEO Bashes the Metaverse, and Nvidia's CEO Embraces It: What It Means for Investors",,,AAPL|NVDA|META,https://www.fool.com/investing/2022/10/08/ceos-of-apple-and-nvidia-metaverse-duel/,The Motley Fool
+AAPL,AAPL,2022-10-08 12:10:00,Here's Why 54% of My Portfolio Is in This Top Index Fund,,,VOO|AAPL|JNJ|CMG|MELI,https://www.fool.com/retirement/2022/10/08/heres-why-54-of-my-portfolio-is-in-this-top-index/,The Motley Fool
+AAPL,AAPL,2022-10-08 13:55:00,Poshmark Gets Bought Out; Chipotle Roars Ahead,,,CMG|META|SBUX|AAPL|GPS|ANF|VTV|REAL|FTCH|POSH|TDUP,https://www.fool.com/investing/2022/10/08/1-stock-for-national-taco-day/,The Motley Fool
+AAPL,AAPL,2022-10-08 14:00:00,Why Pinterest Stock Beat the Market in September,,,PINS|GOOGL|AAPL|GS|GOOG,https://www.fool.com/investing/2022/10/08/why-pinterest-stock-beat-the-market-in-september/,The Motley Fool
+AAPL,AAPL,2022-10-08 21:02:40,"Facebook Warns 1M Users About Usernames, Passwords Stolen Via Malicious Apps",,,AAPL|GOOG|META,https://www.benzinga.com/general/social-media/22/10/29194826/facebook-warns-1m-users-about-usernames-passwords-stolen-via-malicious-apps,Benzinga

@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-07-03 09:45:00,"Learn This Investing Lesson, And You'll Have the Key to Success",,,AAPL,https://www.fool.com/investing/2022/07/03/learn-this-investing-lesson-and-youll-have-the-key/,The Motley Fool
+AAPL,AAPL,2022-07-03 11:30:00,"Have $1,000? 2 Warren Buffett Stocks to Buy Right Now",,,SNOW|BRK.A|BRK.B|AAPL|GOOGL|AMZN|SONY|ATVI|GOOG,https://www.fool.com/investing/2022/07/03/have-1000-2-warren-buffett-stocks-to-buy-right-now/,The Motley Fool
+AAPL,AAPL,2022-07-03 22:42:00,Mark Zuckerberg issues dire economic warning to Meta employees,,,META|AAPL|TSLA|NFLX|U|COIN|SFIX|RDFN|TWTR|INTC,https://www.marketwatch.com/story/mark-zuckerberg-issues-dire-economic-warning-to-meta-employees-11656781950,MarketWatch
+AAPL,AAPL,2022-07-03 23:31:00,'Stranger Things' and beyond: Here's what's worth streaming in July 2022,,,NFLX|AAPL|DIS|CMCSA|AMZN|PARA|WBD,https://www.marketwatch.com/story/stranger-things-and-beyond-heres-whats-worth-streaming-in-july-2022-11656525023,MarketWatch

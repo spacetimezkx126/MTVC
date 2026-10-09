@@ -1,0 +1,6 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-11-11 12:00:00,Firing on All Cylinders Indeed,,,SBUX|AAPL|F|GM|DGX|ROKU|MTCH|DASH|STLA|KLG,https://www.fool.com/investing/2023/11/11/firing-on-all-cylinders-indeed/,The Motley Fool
+AAPL,AAPL,2023-11-11 12:45:00,Apple Stock: Bull vs. Bear,,,AAPL|MSFT,https://www.fool.com/investing/2023/11/11/apple-stock-bull-vs-bear/,The Motley Fool
+AAPL,AAPL,2023-11-11 13:46:00,Veterans Day warning: Scams targeting veterans are rising — here's how to avoid them,,,AAPL|AMZN,https://www.marketwatch.com/story/scams-targeting-veterans-are-on-the-rise-heres-how-to-avoid-them-8ee6cd01,MarketWatch
+AAPL,AAPL,2023-11-11 15:38:00,Stock Buybacks: The Good and the Bad,,,AIG|JBLU|AAPL|EBAY|DAL|GE|SNBR|AER|MEDP,https://www.fool.com/investing/2023/11/11/stock-buybacks-the-good-and-the-bad/,The Motley Fool
+AAPL,AAPL,2023-11-11 16:52:00,These tech stocks scored this earnings season even as AI hype slowed -- and the winner may surprise you,,,MSFT|QCOM|IBM|NOW|META|AMZN|INTC|AAPL|GOOG|NVDA|AMD,https://www.marketwatch.com/story/these-tech-stocks-scored-this-earnings-season-even-as-ai-hype-slowed-and-the-winner-isnt-nvidia-fbeb1c63,MarketWatch

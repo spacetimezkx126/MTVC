@@ -1,0 +1,8 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-06-19 09:15:00,3 Buffett Stocks That Can Make It Through This Messy Market,,,AAPL|BRK.A|BRK.B|AMZN|MA,https://www.fool.com/investing/2022/06/19/3-buffett-stocks-make-it-through-this-messy-market/,The Motley Fool
+AAPL,AAPL,2022-06-19 09:32:00,Warren Buffett Approves of These 4 Easy Investing Strategies You Can Try Today,,,AAPL|BRK.A,https://www.fool.com/investing/2022/06/19/warren-buffett-4-easy-investing-strategies/,The Motley Fool
+AAPL,AAPL,2022-06-19 12:03:45,Apple store employees in Maryland have formed the company’s first US union,,,AAPL,https://qz.com/2179654/apple-store-employees-in-maryland-voted-to-unionize/,Quartz
+AAPL,AAPL,2022-06-19 12:22:00,3 High-Yield Tech Stocks to Buy in June,,,ORCL|AAPL|IBM|AVGO|TXN|VMW,https://www.fool.com/investing/2022/06/19/3-high-yield-tech-stocks-to-buy-in-june/,The Motley Fool
+AAPL,AAPL,2022-06-19 15:00:00,Warren Buffett Just Bought Lots of Stocks -- Here's the One I'm Most Bullish on,,,FND|BRK.A|BRK.B|AAPL|C|KO|PARA|ATVI,https://www.fool.com/investing/2022/06/19/warren-buffett-just-bought-lots-of-stocks-heres-th/,The Motley Fool
+AAPL,AAPL,2022-06-19 15:17:32,Maryland Apple Store Workers Become The First To Unionize In US: What They Told CEO Tim Cook,,,AAPL,https://www.benzinga.com/news/22/06/27779911/maryland-apple-retail-workers-vote-to-unionize-a-first-for-u-s,Benzinga
+AAPL,AAPL,2022-06-19 16:20:00,Meta: This Is More Important Than The Metaverse,,,META|AAPL|AMZN|GOOG|GOOGL|PINS|SNAP,https://seekingalpha.com/article/4519209-meta-this-is-more-important-than-the-metaverse,Seeking Alpha

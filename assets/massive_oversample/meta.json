@@ -1,0 +1,70 @@
+{
+  "dataset": "MASSIVE",
+  "dataset_root": "/home/zhaokx/Pattern/Pattern_Mining/dataset/massive_data",
+  "split_mode": "contiguous",
+  "split": {
+    "train": [
+      "2022-01-01",
+      "2023-12-31"
+    ],
+    "val": [
+      "2024-01-01",
+      "2024-12-31"
+    ],
+    "test": [
+      "2025-01-01",
+      "2025-12-31"
+    ]
+  },
+  "strong_rule": "mv > 0.0055 or mv < -0.005",
+  "label_rule": "1 if mv>0 else 0",
+  "sample_enum": "main_single._extract_graph_aligned_samples contiguous seg=10 pw=5 strong-only",
+  "seed": 41,
+  "target": "test",
+  "target_pos_rate": 0.5298518629358073,
+  "trigger": {
+    "train_majority_down": true,
+    "val_majority_up": true,
+    "test_majority_up": true,
+    "triggered": true
+  },
+  "stats_before": {
+    "train": {
+      "n": 27747,
+      "n_down": 13932,
+      "n_up": 13815,
+      "pos_rate": 0.49789166396367174,
+      "majority": "down"
+    },
+    "val": {
+      "n": 12555,
+      "n_down": 6073,
+      "n_up": 6482,
+      "pos_rate": 0.5162883313420947,
+      "majority": "up"
+    },
+    "test": {
+      "n": 13366,
+      "n_down": 6284,
+      "n_up": 7082,
+      "pos_rate": 0.5298518629358073,
+      "majority": "up"
+    }
+  },
+  "stats_after_train": {
+    "n": 29634,
+    "n_down": 13932,
+    "n_up": 15702,
+    "pos_rate": 0.5298643450091112,
+    "majority": "up"
+  },
+  "n_base": 27747,
+  "n_extra": 1887,
+  "n_full": 29634,
+  "files": {
+    "train_base_strong": "train_base_strong.jsonl",
+    "train_oversample_extra": "train_oversample_extra.jsonl",
+    "train_oversampled_full": "train_oversampled_full.jsonl"
+  },
+  "usage": "Append train_oversample_extra.jsonl onto the model's native strong train samples (same company+date keys), or train on train_oversampled_full.jsonl. Do not oversample val/test."
+}

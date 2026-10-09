@@ -1,0 +1,3 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-09-24 14:00:00,"A Stock's Price ""Tells You Almost Nothing""",,,MDB|ZG|MRK|META|GOOGL|AAPL|AMZN|EBAY|SNBR|COHR|AXON|MELI|MAA|CPRT|GOOG|ANET|ETSY|Z|SQ|TTD|CELH|NET|CFLT,https://www.fool.com/investing/2022/09/24/a-stocks-price-tells-you-almost-nothing/,The Motley Fool
+AAPL,AAPL,2022-09-24 18:23:00,Why Everyone Pays Attention to FedEx,,,FDX|DIS|AMZN|ADBE|UNP|SBUX|NFLX|COST|MSFT|AAPL|SHOP|TWLO,https://www.fool.com/investing/2022/09/24/why-everyone-pays-attention-to-fedex/,The Motley Fool

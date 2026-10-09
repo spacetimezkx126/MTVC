@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-07-23 11:15:00,"Apple Outperforms Market, But Are Big Growth Days in the Past?",,,AAPL|MSFT|GOOGL|GOOG,https://www.fool.com/investing/2022/07/23/apple-outperforms-market-but-are-big-growth-days-i/,The Motley Fool
+AAPL,AAPL,2022-07-23 12:14:00,"'People will freak out': The cloud boom is coming back to Earth, and that could be scary for tech stocks",,,IT|AMZN|MSFT|BABA|GOOGL|GOOG|COIN|AAPL|META|NFLX|MU,https://www.marketwatch.com/story/people-will-freak-out-the-cloud-boom-is-coming-back-to-earth-and-that-could-be-scary-for-tech-stocks-11658423842,MarketWatch
+AAPL,AAPL,2022-07-23 13:26:00,Taiwan Semiconductor Is Saying Chip Demand Remains Strong (For Now),,,TSM|AAPL|AMZN|INTC,https://www.fool.com/investing/2022/07/23/taiwan-semiconductor-is-saying-chip-demand-remains/,The Motley Fool
+AAPL,AAPL,2022-07-23 13:30:00,Impatience Can Be Costly During Bear Markets,,,AAPL|MSFT|AXP,https://www.fool.com/investing/2022/07/23/impatience-can-be-costly-during-bear-markets/,The Motley Fool

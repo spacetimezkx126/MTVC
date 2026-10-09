@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-05-28 09:33:23,Meta Platforms: The Headwind Solidified Its FAANG Stock Status,,,AAPL|FB,https://seekingalpha.com/article/4515112-meta-platforms-headwind-solidified-faang-stock-status,Seeking Alpha
+AAPL,AAPL,2022-05-28 14:30:00,"If I Could Only Buy 1 Stock, This Would Be It",,,BRK.B|BRK.A|AAPL,https://www.fool.com/investing/2022/05/28/if-i-could-only-buy-1-stock-this-would-be-it/,The Motley Fool
+AAPL,AAPL,2022-05-28 15:15:00,Is Apple an Excellent Dividend Stock to Buy?,,,AAPL|MSFT,https://www.fool.com/investing/2022/05/28/is-apple-an-excellent-dividend-stock-to-buy/,The Motley Fool

@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-06-01 05:00:00,My Dividend Growth Portfolio,,,ANCTF|BEPC|CCDBF|FTS|MGA|NTIOF|RY|STLJF|AAPL|ADP|BLK|BN|HD|LMAT|MSFT|SBUX|TXN|V|QCOM|AVGO|SHOP,https://seekingalpha.com/article/4696873-my-dividend-growth-portfolio,Seeking Alpha
+AAPL,AAPL,2024-06-01 08:13:00,Should You Buy Apple Stock Before June 10?,,,AAPL,https://www.fool.com/investing/2024/06/01/should-you-buy-apple-stock-before-june-10/,The Motley Fool
+AAPL,AAPL,2024-06-01 11:15:00,"This ""Magnificent Seven"" Stock Generated $383 Billion in Revenue in Fiscal 2023: Here's My Biggest Bear Case",,,AAPL,https://www.fool.com/investing/2024/06/01/magnificent-seven-stock-383-billion-bear-case/,The Motley Fool

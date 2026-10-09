@@ -1,0 +1,3 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-10-22 09:17:00,Is Elon Musk the Reason Warren Buffett Sold GM Stock?,,,GM|BRK.A|BRK.B|TSLA|AAPL|TM|KO,https://www.fool.com/investing/2023/10/22/is-elon-musk-the-reason-warren-buffett-sold-gm-sto/,The Motley Fool
+AAPL,AAPL,2023-10-22 15:50:00,Where Will TSMC Stock Be in 1 Year?,,,TSM|AAPL|INTC|NVDA,https://www.fool.com/investing/2023/10/22/where-will-tsmc-stock-be-in-1-year/,The Motley Fool

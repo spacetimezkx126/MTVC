@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-07-09 05:11:19,2023 Berkshire Hathaway Annual Meeting: Summary Of The 48 Questions And Answers,,,AAPL|BAC|OXY|BRK.A|BRK.B,https://seekingalpha.com/article/4615912-2023-berkshire-hathaway-annual-meeting-summary-of-the-48-questions-and-answers,Seeking Alpha
+AAPL,AAPL,2023-07-09 10:32:00,Can Shiba Inu Reach $1?,,,AAPL,https://www.fool.com/investing/2023/07/09/can-shiba-inu-reach-1/,The Motley Fool
+AAPL,AAPL,2023-07-09 11:00:00,Is Taiwan Semiconductor Stock a Buy Now?,,,TSM|AAPL|INTC|NVDA|AMD,https://www.fool.com/investing/2023/07/09/is-taiwan-semiconductor-stock-a-buy-now/,The Motley Fool

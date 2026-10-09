@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-09-03 01:27:08,Better Passive Income ETF: SCHD Or VIG?,,,AAPL|MSFT|SCHD|VIG,https://seekingalpha.com/article/4632764-better-passive-income-etf-schd-or-vig,Seeking Alpha
+AAPL,AAPL,2023-09-03 15:18:35,Warren Buffett And Elon Musk Both Share This Same Business Acumen That Has Led To Their Success,,,AAPL|TSLA,https://www.benzinga.com/news/23/09/34193584/warren-buffett-and-elon-musk-both-share-this-same-business-acumen-that-has-led-to-their-success,Benzinga
+AAPL,AAPL,2023-09-03 16:30:44,SoftBank's Arm Reveals IPO Ambitions With Close To $54 Billion Valuation,,,CDNS|INTC|NVDA|SNPS|AMD|AAPL|GOOGL|RIVN,https://www.benzinga.com/news/23/09/34193947/softbanks-arm-reveals-ipo-ambitions-with-close-to-54-billion-valuation,Benzinga

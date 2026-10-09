@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-08-13 11:07:00,This Explosive Growth Stock Is a Bargain Buy Right Now,,,CRUS|AAPL,https://www.fool.com/investing/2022/08/13/this-explosive-growth-stock-is-a-bargain-buy-right/,The Motley Fool
+AAPL,AAPL,2022-08-13 13:47:00,These small-cap stocks will lead the market if the rally has legs,,,CROX|TXRH|AAPL|MSFT|GOOGL|EP|CRK|TCBI|HPP|UNVR|WWD|IWM,https://www.marketwatch.com/story/these-small-cap-stocks-will-lead-the-market-if-the-rally-has-legs-11660322667,MarketWatch
+AAPL,AAPL,2022-08-13 14:15:00,"Down 65% Year-to-Date, Should Investors Buy the Dip on Roku?",,,ROKU|NFLX|DIS|AAPL|AMZN|WBD,https://www.fool.com/investing/2022/08/13/down-67-year-to-date-should-investors-buy-the-dip/,The Motley Fool
+AAPL,AAPL,2022-08-13 17:49:10,How Much China Exposure Does Apple Have? Is Cupertino Serious About Diversifying Supply Chain? Munster Offers His Insights,,,AAPL,https://www.benzinga.com/analyst-ratings/analyst-color/22/08/28484935/how-much-china-exposure-apple-has-is-cupertino-serious-about-supply-chain-diversifi,Benzinga

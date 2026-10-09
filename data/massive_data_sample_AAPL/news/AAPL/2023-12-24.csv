@@ -1,0 +1,4 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2023-12-24 13:30:00,"Is It Time to Sell This Warren Buffett ""Magnificent Seven"" Stock Before 2024?",,,AAPL,https://www.fool.com/investing/2023/12/24/time-sell-warren-buffett-magnificent-7-stock-2024/,The Motley Fool
+AAPL,AAPL,2023-12-24 13:51:01,TSMC Vs. Intel: Only 1 Can Win,,,NVDA|AAPL|AMD|MU|TSM|INTC,https://seekingalpha.com/article/4659440-tsmc-vs-intel-only-1-can-win,Seeking Alpha
+AAPL,AAPL,2023-12-24 20:13:00,The Magnificent 7 dominated 2023. Will the rest of the stock market soar in 2024?,,,AAPL|MSFT|AMZN|NVDA|GOOG|GOOGL|TSLA|META|COMP|DJIA,https://www.marketwatch.com/story/the-magnificent-7-dominated-2023-will-the-rest-of-the-stock-market-soar-in-2024-dc07399f,MarketWatch

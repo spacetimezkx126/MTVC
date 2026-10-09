@@ -1,0 +1,8 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-02-06 00:29:06,Why Elastic Stock Fell 24.2% in January,,,ESTC|AAPL,https://www.fool.com/investing/2022/02/05/why-elastic-stock-fell-in-january/,The Motley Fool
+AAPL,AAPL,2022-02-06 11:11:00,Is Snap Stock a Buy Now?,,,SNAP|AAPL|FB,https://www.fool.com/investing/2022/02/06/is-snap-stock-a-buy-now/,The Motley Fool
+AAPL,AAPL,2022-02-06 11:57:00,3 Reasons Duolingo Is a Screaming Buy on the Dip,,,DUOL|GOOGL|AAPL|GOOG,https://www.fool.com/investing/2022/02/06/3-reasons-to-buy-duolingo-stock-on-the-dip/,The Motley Fool
+AAPL,AAPL,2022-02-06 12:45:00,3 Top Tech Stocks to Buy After the Market Sell-Off,,,OKTA|AAPL|MSFT|GOOGL|AMZN|FB|GOOG|LTCH,https://www.fool.com/investing/2022/02/06/3-top-tech-stocks-to-buy-after-the-market-sell-off/,The Motley Fool
+AAPL,AAPL,2022-02-06 16:42:50,"10 Most Searched Tickers On Benzinga In January: SPY, Tesla, Apple And More",,,MRNA|SPY|BBIG|AAPL|LCID|AMZN|DWAC|MSFT|IMMX|NFLX|NVDA|AMD|F|TSLA|QQQ|BABA|AMC|SOFI|RELI|PTON,https://www.benzinga.com/news/22/02/25398861/10-most-searched-tickers-on-benzinga-in-january-spy-tesla-apple-and-more,Benzinga
+AAPL,AAPL,2022-02-06 17:03:30,How Real Estate Agents Can Benefit From The Metaverse,,,AAPL|MSFT|WMT|FB,https://www.benzinga.com/markets/cryptocurrency/22/02/25441049/how-real-estate-agents-can-benefit-from-the-metaverse,Benzinga
+AAPL,AAPL,2022-02-06 18:58:34,Why This Apple Expert Thinks App Store Can Survive Legislative And Regulatory Challenges,,,AAPL,https://www.benzinga.com/news/22/02/25441366/why-this-apple-expert-thinks-app-store-can-survive-legislative-and-regulatory-challenges,Benzinga

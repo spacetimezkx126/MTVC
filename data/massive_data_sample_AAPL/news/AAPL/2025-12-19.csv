@@ -1,0 +1,2 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2025-12-19 20:30:00,Is Nokia a Must-Own Stock for 2026?,neutral,"Referenced historically as the company that disrupted Nokia's mobile phone dominance with the iPhone, but no current developments or relevance to the article's main thesis.",NOK|NVDA|ERIC|CSCO|TMUS|TMUSI|TMUSL|TMUSZ|AAPL,https://www.fool.com/investing/2025/12/19/is-nokia-a-must-own-stock-for-2026/?source=iedfolrf0000001,The Motley Fool

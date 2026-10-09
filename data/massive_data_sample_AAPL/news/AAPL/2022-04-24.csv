@@ -1,0 +1,10 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2022-04-24 06:52:00,"3 Stocks To Watch In The Coming Week: Meta Platforms, Apple, Amazon",,,AAPL|MSFT|BA|FB|AMZN,https://www.investing.com/analysis/3-stocks-to-watch-in-the-coming-week-meta-platforms-apple-amazon-200622768,Investing.com
+AAPL,AAPL,2022-04-24 10:35:33,Meta Could Get The Netflix Treatment,,,NFLX|AAPL|FB,https://seekingalpha.com/article/4503197-meta-could-get-the-netflix-treatment,Seeking Alpha
+AAPL,AAPL,2022-04-24 11:00:00,3 Things to Watch in the Stock Market This Week,,,AAPL|MCD|AMZN,https://www.fool.com/investing/2022/04/24/3-things-to-watch-in-the-stock-market-this-week/,The Motley Fool
+AAPL,AAPL,2022-04-24 11:07:00,3 Investing Strategies to Grow Your Money Like Magic,,,SPY|NFLX|AAPL|AMZN,https://www.fool.com/investing/2022/04/24/3-investing-strategies-grow-your-money-like-magic/,The Motley Fool
+AAPL,AAPL,2022-04-24 12:04:00,"1 Stock To Buy, 1 To Dump When Markets Open: Tesla, PayPal",,,AAPL|MSFT|AMZN|GOOGL|FB|TWTR|INTC|QCOM|SPOT|PINS|HOOD|XOM|CVX|MCD|BA|CAT|F|GM|UPS|KO|V|MA|GE|TSLA|F|GM|TM|HMC|PYPL|WMT,https://www.investing.com/analysis/1-stock-to-buy-1-to-dump-when-markets-open-tesla-paypal-200622773,Investing.com
+AAPL,AAPL,2022-04-24 12:15:00,Is Snap Stock a Buy Now?,,,SNAP|AAPL|FB,https://www.fool.com/investing/2022/04/24/is-snap-stock-a-buy-now/,The Motley Fool
+AAPL,AAPL,2022-04-24 13:31:30,Apple Q2 Earnings: 3 Things  Investors Should Watch For,,,AAPL,https://www.benzinga.com/analyst-ratings/analyst-color/22/04/26768382/apple-earnings-3-things-investors-should-watch-for,Benzinga
+AAPL,AAPL,2022-04-24 15:00:00,3 Best Buffett Stocks to Buy for the Long Haul,,,UPS|BRK.A|BRK.B|AAPL|KO,https://www.fool.com/investing/2022/04/24/3-best-buffett-stocks-to-buy-for-the-long-haul/,The Motley Fool
+AAPL,AAPL,2022-04-24 15:58:02,Apple declined 2.12% to close at $161 but how much further can it drop?,,,AAPL,https://invezz.com/news/2022/04/24/apple-declined-2-12-to-close-at-161-but-how-much-further-can-it-drop/,Invezz

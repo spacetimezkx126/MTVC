@@ -1,0 +1,5 @@
+code_name,ticker,created_at,text,sentiment,sentiment_reasoning,tickers,article_url,source
+AAPL,AAPL,2024-01-07 10:02:00,"The Stunning ""Magnificent Seven"" Fact Investors Need to Know",,,NVDA|AAPL|MSFT|GOOGL|AMZN|META|TSLA|GOOG,https://www.fool.com/investing/2024/01/07/the-stunning-magnificent-seven-fact-investors-need/,The Motley Fool
+AAPL,AAPL,2024-01-07 12:10:00,Microsoft's Windows Faces a New Threat From an Old Enemy,,,MSFT|AAPL,https://www.fool.com/investing/2024/01/07/microsofts-windows-faces-a-new-threat-from-an-old/,The Motley Fool
+AAPL,AAPL,2024-01-07 12:45:00,"The Last Time Apple Spent This Much Money, It Unleashed 20 Years of Unstoppable Growth",,,AAPL,https://www.fool.com/investing/2024/01/07/apple-spent-money-unleashed-unstoppable-growth/,The Motley Fool
+AAPL,AAPL,2024-01-07 13:40:00,Street Calls of the Week: Apple gut punched,,,AAPL|VZ|T|GM|F|STLA|TSLA|PYPL,https://www.investing.com/analysis/street-calls-of-the-week-apple-gut-punched-200644935,Investing.com
