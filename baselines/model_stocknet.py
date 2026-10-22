@@ -1,14 +1,8 @@
-"""
-PyTorch reimplementation of StockNet MIE path from PEN Model.py (# stocknet 分支).
+"""MTVC experiment utilities."""
 
-MEL -> corpus_embed -> concat(price) -> VMD -> TDA -> generative ATA.
-（PEN 的 # pen 分支走 MSIN，见 model_pen.py）
-"""
 from __future__ import annotations
-
 import math
 from typing import Literal
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,11 +22,7 @@ class PenLinear(nn.Module):
     """TF Model._linear: concat args, matmul weight, optional bias + activation."""
 
     def __init__(
-        self,
-        in_size: int,
-        out_size: int,
-        activation: str | None = None,
-        use_bias: bool = True,
+        self, in_size: int, out_size: int, activation: str | None = None, use_bias: bool = True
     ):
         super().__init__()
         self.out_size = out_size
@@ -69,13 +59,13 @@ class DiagonalGaussianZ(nn.Module):
     def forward(self, context: torch.Tensor, is_prior: bool):
         mu = self.mu(context)
         logvar = self.lv(context)
-        std = torch.exp(0.5 * logvar).clamp_min(1e-6)
+        std = torch.exp(0.5 * logvar).clamp_min(1e-06)
         if is_prior:
             z = mu
         else:
             z = mu + std * torch.randn_like(std)
         pdf = dist.Normal(mu, std)
-        return z, pdf
+        return (z, pdf)
 
 
 class MessageEmbedLayer(nn.Module):
@@ -99,37 +89,24 @@ class MessageEmbedLayer(nn.Module):
         self.word_embed = nn.Embedding(vocab_size, word_embed_size, padding_idx=pad_id)
         _xavier_init_(self.word_embed.weight)
         if cell_type == "gru":
-            self.rnn_f = nn.GRU(
-                word_embed_size, mel_h_size, batch_first=True, bidirectional=False
-            )
-            self.rnn_b = nn.GRU(
-                word_embed_size, mel_h_size, batch_first=True, bidirectional=False
-            )
+            self.rnn_f = nn.GRU(word_embed_size, mel_h_size, batch_first=True, bidirectional=False)
+            self.rnn_b = nn.GRU(word_embed_size, mel_h_size, batch_first=True, bidirectional=False)
         else:
-            self.rnn_f = nn.RNN(
-                word_embed_size, mel_h_size, batch_first=True, bidirectional=False
-            )
-            self.rnn_b = nn.RNN(
-                word_embed_size, mel_h_size, batch_first=True, bidirectional=False
-            )
+            self.rnn_f = nn.RNN(word_embed_size, mel_h_size, batch_first=True, bidirectional=False)
+            self.rnn_b = nn.RNN(word_embed_size, mel_h_size, batch_first=True, bidirectional=False)
         self.drop_in = nn.Dropout(dropout_in)
         self.drop = nn.Dropout(dropout)
 
     def _run_one_direction(
         self, rnn: nn.Module, emb: torch.Tensor, lengths: torch.Tensor
     ) -> torch.Tensor:
-        packed = pack_padded_sequence(
-            emb, lengths.cpu(), batch_first=True, enforce_sorted=False
-        )
-        out, _ = rnn(packed)
-        out, _ = pad_packed_sequence(out, batch_first=True)
+        packed = pack_padded_sequence(emb, lengths.cpu(), batch_first=True, enforce_sorted=False)
+        (out, _) = rnn(packed)
+        (out, _) = pad_packed_sequence(out, batch_first=True)
         return out
 
     def forward(
-        self,
-        word_ids: torch.Tensor,
-        n_words: torch.Tensor,
-        ss_index: torch.Tensor,
+        self, word_ids: torch.Tensor, n_words: torch.Tensor, ss_index: torch.Tensor
     ) -> torch.Tensor:
         """
         word_ids: [B, L, M, W]
@@ -137,20 +114,17 @@ class MessageEmbedLayer(nn.Module):
         ss_index: [B, L, M]
         -> msg_embed [B, L, M, mel_h_size]
         """
-        b, l, m, w = word_ids.shape
+        (b, l, m, w) = word_ids.shape
         flat_ids = word_ids.reshape(b * l * m, w)
         flat_n = n_words.reshape(b * l * m).clamp(min=1)
         flat_ss = ss_index.reshape(b * l * m).clamp(0, w - 1)
-
         emb = self.word_embed(flat_ids.clamp(min=0))
         emb = self.drop_in(emb)
-
         out_f = self._run_one_direction(self.rnn_f, emb, flat_n)
         rev_emb = torch.flip(emb, dims=[1])
         rev_len = flat_n.clone()
         out_b_rev = self._run_one_direction(self.rnn_b, rev_emb, rev_len)
         out_b = torch.flip(out_b_rev, dims=[1])
-
         idx = torch.arange(flat_ids.size(0), device=word_ids.device)
         h_f = out_f[idx, flat_ss]
         h_b = out_b[idx, flat_ss]
@@ -170,7 +144,7 @@ class CorpusEmbedLayer(nn.Module):
         self.drop = nn.Dropout(dropout)
 
     def forward(self, msg_embed: torch.Tensor, n_msgs: torch.Tensor) -> torch.Tensor:
-        b, l, m, d = msg_embed.shape
+        (b, l, m, d) = msg_embed.shape
         proj = torch.tanh(self.proj_u(msg_embed))
         u = torch.matmul(proj, self.w_u).squeeze(-1)
         idx = torch.arange(m, device=n_msgs.device).view(1, 1, m).expand(b, l, m)
@@ -205,7 +179,6 @@ class VMDZhRec(nn.Module):
             self.seq_cell = nn.GRU(x_size, h_size, batch_first=True)
         else:
             self.seq_cell = nn.LSTM(x_size, h_size, batch_first=True)
-
         z_in_prior = x_size + h_size + z_size
         z_in_post = x_size + h_size + y_size + z_size
         self.enc_prior = nn.Sequential(nn.Linear(z_in_prior, z_size), nn.Tanh())
@@ -216,45 +189,34 @@ class VMDZhRec(nn.Module):
         self.y_lin = PenLinear(g_size, y_size, activation="softmax")
 
     def forward(
-        self,
-        x: torch.Tensor,
-        y_onehot: torch.Tensor,
-        seq_len: torch.Tensor,
+        self, x: torch.Tensor, y_onehot: torch.Tensor, seq_len: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         x = self.drop(x)
-        b, l, _ = x.shape
+        (b, l, _) = x.shape
         if isinstance(self.seq_cell, nn.GRU):
-            h_s, _ = self.seq_cell(x)
+            (h_s, _) = self.seq_cell(x)
         else:
-            h_s, _ = self.seq_cell(x)
-
-        g_list, y_prob_list, kl_list = [], [], []
-        z_prior_list, z_post_list = [], []
+            (h_s, _) = self.seq_cell(x)
+        (g_list, y_prob_list, kl_list) = ([], [], [])
+        (z_prior_list, z_post_list) = ([], [])
         z_prev = torch.randn(b, self.z_size, device=x.device, dtype=x.dtype)
-
         for t in range(l):
             x_t = x[:, t, :]
             h_t = h_s[:, t, :]
             y_t = y_onehot[:, t, :]
-
             h_z_p = self.enc_prior(torch.cat([x_t, h_t, z_prev], dim=-1))
-            z_p, dist_p = self.prior_z(h_z_p, is_prior=True)
-
+            (z_p, dist_p) = self.prior_z(h_z_p, is_prior=True)
             h_z_q = self.enc_post(torch.cat([x_t, h_t, y_t, z_prev], dim=-1))
-            z_q, dist_q = self.post_z(h_z_q, is_prior=False)
-
+            (z_q, dist_q) = self.post_z(h_z_q, is_prior=False)
             kl_t = dist.kl_divergence(dist_q, dist_p).sum(-1)
             kl_list.append(kl_t)
-
             g_t = self.g_lin(torch.cat([h_t, z_q], dim=-1))
             y_t_prob = self.y_lin(g_t)
-
             g_list.append(g_t)
             y_prob_list.append(y_t_prob)
             z_prior_list.append(z_p)
             z_post_list.append(z_q)
             z_prev = z_q
-
         return {
             "g": torch.stack(g_list, dim=1),
             "y_prob": torch.stack(y_prob_list, dim=1),
@@ -285,12 +247,10 @@ class VMDHRec(nn.Module):
         self.g_size = g_size
         self.y_size = y_size
         self.drop = nn.Dropout(dropout)
-
         xz = x_size + h_size + z_size
         self.gru_r = nn.Linear(xz, h_size)
         self.gru_u = nn.Linear(xz, h_size)
         self.gru_h = nn.Linear(x_size + h_size + z_size, h_size)
-
         self.enc_prior = nn.Sequential(nn.Linear(x_size + h_size, z_size), nn.Tanh())
         self.enc_post = nn.Sequential(nn.Linear(x_size + h_size + y_size, z_size), nn.Tanh())
         self.prior_z = DiagonalGaussianZ(z_size)
@@ -301,18 +261,16 @@ class VMDHRec(nn.Module):
     def _init_state(self, batch: int, device, dtype):
         h = torch.tanh(torch.randn(batch, self.h_size, device=device, dtype=dtype))
         h_z = torch.tanh(torch.randn(batch, self.z_size, device=device, dtype=dtype))
-        z, _ = self.post_z(h_z, is_prior=False)
-        return h, z
+        (z, _) = self.post_z(h_z, is_prior=False)
+        return (h, z)
 
     def forward(self, x: torch.Tensor, y_onehot: torch.Tensor) -> dict[str, torch.Tensor]:
         x = self.drop(x)
-        b, l, _ = x.shape
-        device, dtype = x.device, x.dtype
-        h, z = self._init_state(b, device, dtype)
-
-        g_list, y_prob_list, kl_list = [], [], []
-        z_prior_list, z_post_list, h_list = [], [], []
-
+        (b, l, _) = x.shape
+        (device, dtype) = (x.device, x.dtype)
+        (h, z) = self._init_state(b, device, dtype)
+        (g_list, y_prob_list, kl_list) = ([], [], [])
+        (z_prior_list, z_post_list, h_list) = ([], [], [])
         for t in range(l):
             x_t = x[:, t, :]
             y_t = y_onehot[:, t, :]
@@ -321,25 +279,19 @@ class VMDHRec(nn.Module):
             u = torch.sigmoid(self.gru_u(gate_in))
             h_tilde = torch.tanh(self.gru_h(torch.cat([x_t, r * h, z], dim=-1)))
             h = (1.0 - u) * h + u * h_tilde
-
             h_z_p = self.enc_prior(torch.cat([x_t, h], dim=-1))
-            z_p, dist_p = self.prior_z(h_z_p, is_prior=True)
-
+            (z_p, dist_p) = self.prior_z(h_z_p, is_prior=True)
             h_z_q = self.enc_post(torch.cat([x_t, h, y_t], dim=-1))
-            z_q, dist_q = self.post_z(h_z_q, is_prior=False)
-
+            (z_q, dist_q) = self.post_z(h_z_q, is_prior=False)
             kl_t = dist.kl_divergence(dist_q, dist_p).sum(-1)
             kl_list.append(kl_t)
-
             g_t = self.g_lin(torch.cat([x_t, h, z_q], dim=-1))
             y_t_prob = self.y_lin(g_t)
-
             g_list.append(g_t)
             y_prob_list.append(y_t_prob)
             z_prior_list.append(z_p)
             z_post_list.append(z_q)
             h_list.append(h)
-
         return {
             "g": torch.stack(g_list, dim=1),
             "y_prob": torch.stack(y_prob_list, dim=1),
@@ -367,27 +319,20 @@ class TemporalAttnDecoder(nn.Module):
         self.y_T_lin = PenLinear(self.ctx_size + g_size, y_size, activation="softmax")
 
     def forward(
-        self,
-        g: torch.Tensor,
-        g_T: torch.Tensor,
-        y_prob: torch.Tensor,
-        mask_aux: torch.Tensor,
+        self, g: torch.Tensor, g_T: torch.Tensor, y_prob: torch.Tensor, mask_aux: torch.Tensor
     ):
         proj_i = torch.tanh(self.proj_i(g))
         v_i = (proj_i * self.w_i).sum(dim=-1)
-
         proj_d = torch.tanh(self.proj_d(g))
         v_d = (proj_d * g_T.unsqueeze(1)).sum(dim=-1)
-
         aux_score = v_i * v_d
         aux_score = aux_score.masked_fill(~mask_aux, float("-inf"))
         v_stared = F.softmax(aux_score, dim=-1)
         v_stared = torch.nan_to_num(v_stared, nan=0.0)
-
         ctx = g if self.daily_att == "g" else y_prob
         att_c = torch.sum(v_stared.unsqueeze(-1) * ctx, dim=1)
         y_T = self.y_T_lin(torch.cat([att_c, g_T], dim=-1))
-        return y_T, v_stared
+        return (y_T, v_stared)
 
 
 def mask_auxiliary_days(batch: int, seq_len: int, t_idx: torch.Tensor, device) -> torch.Tensor:
@@ -405,24 +350,21 @@ def generative_ata_loss(
     alpha: float,
     kl_lambda: float,
     t_idx: torch.Tensor,
-    eps: float = 1e-8,
+    eps: float = 1e-08,
 ) -> torch.Tensor:
     """TF Model._create_generative_ata."""
     log_y = torch.log(y_prob + eps)
     likelihood_aux = (y_onehot * log_y).sum(dim=-1)
     obj_aux = likelihood_aux - kl_lambda * kl
     v_aux = alpha * v_stared
-
     b = y_onehot.size(0)
     batch_idx = torch.arange(b, device=y_onehot.device)
     target_idx = (t_idx - 1).clamp(min=0)
     y_T_true = y_onehot[batch_idx, target_idx, :]
-
     log_y_T = torch.log(y_T_prob + eps)
     likelihood_T = (y_T_true * log_y_T).sum(dim=-1, keepdim=True)
     kl_T = kl[batch_idx, target_idx].unsqueeze(1)
     obj_T = likelihood_T - kl_lambda * kl_T
-
     obj = obj_T + (obj_aux * v_aux).sum(dim=1, keepdim=True)
     return (-obj).mean()
 
@@ -474,7 +416,6 @@ class StockNetModel(nn.Module):
         self.daily_att = daily_att
         self.pad_id = pad_id
         z_size = z_size or h_size
-
         self.mel = MessageEmbedLayer(
             vocab_size=vocab_size,
             word_embed_size=word_embed_size,
@@ -485,7 +426,6 @@ class StockNetModel(nn.Module):
             dropout=dropout_mel,
         )
         self.corpus = CorpusEmbedLayer(mel_h_size, dropout=dropout_ce)
-
         self.price_input_size = int(price_input_size)
         if variant_type == "tech":
             self.x_size = self.price_input_size
@@ -493,7 +433,6 @@ class StockNetModel(nn.Module):
             self.x_size = mel_h_size
         else:
             self.x_size = mel_h_size + self.price_input_size
-
         if vmd_rec == "zh":
             self.vmd = VMDZhRec(
                 self.x_size,
@@ -559,16 +498,13 @@ class StockNetModel(nn.Module):
     ):
         x = self._build_x(word_ids, n_words, ss_index, n_msgs, price)
         x = self.dropout_vmd_in(x)
-
         if self.vmd_rec == "zh":
             vmd_out = self.vmd(x, y_onehot, t_idx)
         else:
             vmd_out = self.vmd(x, y_onehot)
-
         mask_aux = mask_auxiliary_days(x.size(0), x.size(1), t_idx, x.device)
         g_T = self._g_T_infer_gen(x, vmd_out, t_idx)
-        y_T, v_stared = self.tda(vmd_out["g"], g_T, vmd_out["y_prob"], mask_aux)
-
+        (y_T, v_stared) = self.tda(vmd_out["g"], g_T, vmd_out["y_prob"], mask_aux)
         loss = None
         if compute_loss:
             loss = generative_ata_loss(
@@ -581,7 +517,6 @@ class StockNetModel(nn.Module):
                 self.kl_lambda,
                 t_idx,
             )
-
         b = y_onehot.size(0)
         batch_idx = torch.arange(b, device=y_onehot.device)
         target_idx = (t_idx - 1).clamp(min=0)

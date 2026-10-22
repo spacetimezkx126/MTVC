@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 """Deterministic train oversample extras (same JSONL as dual_tf)."""
-from __future__ import annotations
 
+from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
@@ -43,11 +42,10 @@ def summarize_oversample_counts(counts: Mapping[tuple[str, str], int]) -> dict:
 
 
 def expand_tuple_samples(
-    samples: list[tuple[str, str, float]],
-    extras: Sequence[tuple[str, str]],
+    samples: list[tuple[str, str, float]], extras: Sequence[tuple[str, str]]
 ) -> tuple[list[tuple[str, str, float]], int, int]:
     """Append extra copies of matching (company, date) samples. Val/test unused."""
-    by_key = {(c, d): (c, d, mv) for c, d, mv in samples}
+    by_key = {(c, d): (c, d, mv) for (c, d, mv) in samples}
     out = list(samples)
     n_hit = n_miss = 0
     for key in extras:
@@ -57,7 +55,7 @@ def expand_tuple_samples(
             continue
         out.append(src)
         n_hit += 1
-    return out, n_hit, n_miss
+    return (out, n_hit, n_miss)
 
 
 def expand_dict_samples(
@@ -77,7 +75,7 @@ def expand_dict_samples(
             continue
         out.append(src)
         n_hit += 1
-    return out, n_hit, n_miss
+    return (out, n_hit, n_miss)
 
 
 def apply_oversample_to_dataset_samples(dataset, extra_path: str, log_fn=None) -> int:
@@ -89,12 +87,11 @@ def apply_oversample_to_dataset_samples(dataset, extra_path: str, log_fn=None) -
     counts = extra_counts_from_list(extras)
     os_sum = summarize_oversample_counts(counts)
     n_before = len(dataset.samples)
-    new_samples, n_hit, n_miss = expand_dict_samples(dataset.samples, extras)
+    (new_samples, n_hit, n_miss) = expand_dict_samples(dataset.samples, extras)
     dataset.samples = new_samples
     if log_fn is not None:
         log_fn(
-            "train oversample extra=%s unique=%d copies=%d hit=%d miss=%d n %d->%d "
-            "(val/test unchanged)",
+            "train oversample extra=%s unique=%d copies=%d hit=%d miss=%d n %d->%d (val/test unchanged)",
             path,
             os_sum["n_unique_keys"],
             os_sum["n_extra_copies"],

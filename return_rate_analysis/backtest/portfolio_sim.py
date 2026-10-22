@@ -1,10 +1,8 @@
 """Portfolio simulation helpers (no vol_screen / edge deps)."""
 
 from __future__ import annotations
-
 from collections import defaultdict
 from dataclasses import dataclass, field
-
 import numpy as np
 
 
@@ -41,7 +39,13 @@ def _calc_fees(transaction_vol: float, fees_pct: float) -> float:
 
 
 def _portfolio_metrics(budget: list[float]) -> dict[str, float]:
-    from backtest.metrics import calculate_ARR, calculate_Calmar_Ratio, calculate_IR, calculate_MDD, calculate_SR
+    from backtest.metrics import (
+        calculate_ARR,
+        calculate_Calmar_Ratio,
+        calculate_IR,
+        calculate_MDD,
+        calculate_SR,
+    )
 
     arr = float(calculate_ARR(budget))
     mdd = float(calculate_MDD(budget))
@@ -60,13 +64,15 @@ def run_portfolio_strategy(
     *,
     name: str,
     mode: str = "model_topk",
-    budget: float = 10_000.0,
+    budget: float = 10000.0,
     fees: float = 0.0,
     topk: int = 5,
     prob_threshold: float = 0.0,
     model_ew_threshold: float = 0.5,
     max_days: int | None = None,
 ) -> PortfolioResult:
+    if topk < 1 or budget <= 0:
+        raise ValueError("topk and initial budget must be positive")
     dates = sorted(store.day_table.keys())
     if max_days is not None and max_days > 0:
         dates = dates[:max_days]
@@ -74,17 +80,15 @@ def run_portfolio_strategy(
     daily_ret: list[float] = []
     picks: list[list[str]] = []
     out_dates: list[str] = []
-
     for date_str in dates:
         stocks = store.day_table[date_str]
         items = [
             (comp, rec.prob, rec.y_org)
-            for comp, rec in stocks.items()
+            for (comp, rec) in stocks.items()
             if rec.count > 0 and rec.prob >= prob_threshold
         ]
         if not items:
             continue
-
         if mode == "label_ew":
             day_ret = float(np.mean([x[2] for x in items]))
             day_picks = [x[0] for x in items]
@@ -98,16 +102,13 @@ def run_portfolio_strategy(
             day_picks = [x[0] for x in sel]
         else:
             raise ValueError(f"unknown portfolio mode: {mode}")
-
         cur = asset[-1]
         asset.append(cur * (1.0 + day_ret) - _calc_fees(cur, fees))
         daily_ret.append(day_ret)
         picks.append(day_picks)
         out_dates.append(date_str)
-
     if len(asset) < 2:
         raise RuntimeError(f"portfolio mode={mode}: not enough trading days")
-
     metrics = _portfolio_metrics(asset)
     metrics["n_trading_days"] = len(out_dates)
     return PortfolioResult(

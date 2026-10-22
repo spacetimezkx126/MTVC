@@ -1,14 +1,7 @@
-"""
-PyTorch reimplementation of PEN (# pen 分支) from
-# Ported from upstream PEN Model.py
+"""MTVC experiment utilities."""
 
-MEL -> MSIN(price, msg_embed) -> VMD -> TDA -> generative / discriminative ATA.
-StockNet 路径见 model_stocknet.py（MEL -> corpus_embed -> concat price）。
-"""
 from __future__ import annotations
-
 from typing import Literal
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -25,12 +18,9 @@ def _xavier_init_(tensor: torch.Tensor, uniform: bool = True) -> torch.Tensor:
 
 
 class PenLinear(nn.Module):
+
     def __init__(
-        self,
-        in_size: int,
-        out_size: int,
-        activation: str | None = None,
-        use_bias: bool = True,
+        self, in_size: int, out_size: int, activation: str | None = None, use_bias: bool = True
     ):
         super().__init__()
         self.activation = activation
@@ -53,6 +43,7 @@ class PenLinear(nn.Module):
 
 
 class DiagonalGaussianZ(nn.Module):
+
     def __init__(self, z_dim: int):
         super().__init__()
         self.mu = nn.Linear(z_dim, z_dim)
@@ -64,9 +55,9 @@ class DiagonalGaussianZ(nn.Module):
     def forward(self, context: torch.Tensor, is_prior: bool):
         mu = self.mu(context)
         logvar = self.lv(context)
-        std = torch.exp(0.5 * logvar).clamp_min(1e-6)
+        std = torch.exp(0.5 * logvar).clamp_min(1e-06)
         z = mu if is_prior else mu + std * torch.randn_like(std)
-        return z, dist.Normal(mu, std)
+        return (z, dist.Normal(mu, std))
 
 
 class MessageEmbedLayer(nn.Module):
@@ -93,23 +84,20 @@ class MessageEmbedLayer(nn.Module):
         self.drop = nn.Dropout(dropout)
 
     def _run_one_direction(self, rnn, emb, lengths):
-        packed = pack_padded_sequence(
-            emb, lengths.cpu(), batch_first=True, enforce_sorted=False
-        )
-        out, _ = rnn(packed)
-        out, _ = pad_packed_sequence(out, batch_first=True)
+        packed = pack_padded_sequence(emb, lengths.cpu(), batch_first=True, enforce_sorted=False)
+        (out, _) = rnn(packed)
+        (out, _) = pad_packed_sequence(out, batch_first=True)
         return out
 
     def forward(self, word_ids, n_words, ss_index):
-        b, l, m, w = word_ids.shape
+        (b, l, m, w) = word_ids.shape
         flat_ids = word_ids.reshape(b * l * m, w)
         flat_n = n_words.reshape(b * l * m).clamp(min=1)
         flat_ss = ss_index.reshape(b * l * m).clamp(0, w - 1)
         emb = self.drop_in(self.word_embed(flat_ids.clamp(min=0)))
         out_f = self._run_one_direction(self.rnn_f, emb, flat_n)
         out_b = torch.flip(
-            self._run_one_direction(self.rnn_b, torch.flip(emb, dims=[1]), flat_n),
-            dims=[1],
+            self._run_one_direction(self.rnn_b, torch.flip(emb, dims=[1]), flat_n), dims=[1]
         )
         idx = torch.arange(flat_ids.size(0), device=word_ids.device)
         msg = (out_f[idx, flat_ss] + out_b[idx, flat_ss]) * 0.5
@@ -117,7 +105,7 @@ class MessageEmbedLayer(nn.Module):
 
 
 class CorpusEmbedLayer(nn.Module):
-    """TF Model._create_corpus_embed — StockNet MIE 路径专用。"""
+    """Corpusembedlayer."""
 
     def __init__(self, mel_dim: int, dropout: float = 0.0):
         super().__init__()
@@ -127,7 +115,7 @@ class CorpusEmbedLayer(nn.Module):
         self.drop = nn.Dropout(dropout)
 
     def forward(self, msg_embed, n_msgs):
-        b, l, m, _ = msg_embed.shape
+        (b, l, m, _) = msg_embed.shape
         u = torch.matmul(torch.tanh(self.proj_u(msg_embed)), self.w_u).squeeze(-1)
         idx = torch.arange(m, device=n_msgs.device).view(1, 1, m).expand(b, l, m)
         u = u.masked_fill(~(idx < n_msgs.clamp(min=0).unsqueeze(-1)), float("-inf"))
@@ -136,7 +124,7 @@ class CorpusEmbedLayer(nn.Module):
 
 
 class MSINCell(nn.Module):
-    """TF MSINModule.MSINCell — PEN MIE：逐日融合 price 与 msg_embed。"""
+    """Msincell."""
 
     def __init__(self, input_size: int, num_units: int, v_size: int):
         super().__init__()
@@ -176,7 +164,7 @@ class MSINCell(nn.Module):
         state: tuple[torch.Tensor, torch.Tensor],
         msg_mask: torch.Tensor | None = None,
     ):
-        h, v = state
+        (h, v) = state
         attn = torch.tanh(self.W_sa(msg_t) + (self.W_ha(h) + self.b_a).unsqueeze(1))
         scores = torch.einsum("bmd,d->bm", attn, self.v_a)
         if msg_mask is not None:
@@ -191,11 +179,11 @@ class MSINCell(nn.Module):
         hx = torch.tanh(self.W_s(price_t) + self.W_hs(h) + self.b_s)
         hv = torch.tanh(self.W_hv(h) + self.W_v(v_new) + self.b_v)
         h_new = (1.0 - k) * hv + k * hx
-        return h_new, p, (h_new, v_new)
+        return (h_new, p, (h_new, v_new))
 
 
 class MSINEncoder(nn.Module):
-    """TF MSIN.dynamic_msin — 对 [B,L] 序列逐日调用 MSINCell。"""
+    """Msinencoder."""
 
     def __init__(self, input_size: int, num_units: int, v_size: int, max_n_msgs: int):
         super().__init__()
@@ -209,33 +197,43 @@ class MSINEncoder(nn.Module):
         n_msgs: torch.Tensor,
         msg_keep_mask: torch.Tensor | None = None,
     ):
-        b, l, m, _ = msg_embed.shape
+        (b, l, m, _) = msg_embed.shape
         h = msg_embed.new_zeros(b, self.cell.num_units)
         v = msg_embed.new_zeros(b, self.cell.v_size)
-        xs, ps = [], []
+        (xs, ps) = ([], [])
         idx = torch.arange(m, device=msg_embed.device).view(1, 1, m).expand(b, l, m)
         for t in range(l):
             mask = idx[:, t, :] < n_msgs[:, t].clamp(min=0).unsqueeze(-1)
             if msg_keep_mask is not None:
                 mask = mask & msg_keep_mask[:, t, :]
-            h, p, (h, v) = self.cell(price[:, t, :], msg_embed[:, t, :, :], (h, v), mask)
+            (h, p, (h, v)) = self.cell(price[:, t, :], msg_embed[:, t, :, :], (h, v), mask)
             xs.append(h)
             ps.append(p)
-        return torch.stack(xs, dim=1), torch.stack(ps, dim=1)
+        return (torch.stack(xs, dim=1), torch.stack(ps, dim=1))
 
 
 class VMDZhRec(nn.Module):
     """TF _create_vmd_with_zh_rec."""
 
     def __init__(
-        self, x_size, h_size, z_size, g_size, y_size=2,
-        cell_type: Literal["gru", "ln-lstm"] = "gru", dropout=0.0,
+        self,
+        x_size,
+        h_size,
+        z_size,
+        g_size,
+        y_size=2,
+        cell_type: Literal["gru", "ln-lstm"] = "gru",
+        dropout=0.0,
     ):
         super().__init__()
         self.h_size = h_size
         self.z_size = z_size
         self.drop = nn.Dropout(dropout)
-        self.seq_cell = nn.GRU(x_size, h_size, batch_first=True) if cell_type == "gru" else nn.LSTM(x_size, h_size, batch_first=True)
+        self.seq_cell = (
+            nn.GRU(x_size, h_size, batch_first=True)
+            if cell_type == "gru"
+            else nn.LSTM(x_size, h_size, batch_first=True)
+        )
         z_in_prior = x_size + h_size + z_size
         z_in_post = x_size + h_size + y_size + z_size
         self.enc_prior = nn.Sequential(nn.Linear(z_in_prior, z_size), nn.Tanh())
@@ -248,17 +246,17 @@ class VMDZhRec(nn.Module):
     def forward(self, x, y_onehot, t_idx):
         del t_idx
         x = self.drop(x)
-        b, l, _ = x.shape
-        h_s, _ = self.seq_cell(x)
-        g_list, y_list, kl_list = [], [], []
-        z_prior_list, z_post_list = [], []
+        (b, l, _) = x.shape
+        (h_s, _) = self.seq_cell(x)
+        (g_list, y_list, kl_list) = ([], [], [])
+        (z_prior_list, z_post_list) = ([], [])
         z_prev = torch.randn(b, self.z_size, device=x.device, dtype=x.dtype)
         for t in range(l):
-            x_t, h_t, y_t = x[:, t], h_s[:, t], y_onehot[:, t]
+            (x_t, h_t, y_t) = (x[:, t], h_s[:, t], y_onehot[:, t])
             h_z_p = self.enc_prior(torch.cat([x_t, h_t, z_prev], dim=-1))
-            z_p, dist_p = self.prior_z(h_z_p, is_prior=True)
+            (z_p, dist_p) = self.prior_z(h_z_p, is_prior=True)
             h_z_q = self.enc_post(torch.cat([x_t, h_t, y_t, z_prev], dim=-1))
-            z_q, dist_q = self.post_z(h_z_q, is_prior=False)
+            (z_q, dist_q) = self.post_z(h_z_q, is_prior=False)
             kl_list.append(dist.kl_divergence(dist_q, dist_p).sum(-1))
             g_t = self.g_lin(torch.cat([h_t, z_q], dim=-1))
             y_list.append(self.y_lin(g_t))
@@ -282,7 +280,7 @@ class VMDHRec(nn.Module):
 
     def __init__(self, x_size, h_size, z_size, g_size, y_size=2, dropout=0.0):
         super().__init__()
-        self.x_size, self.h_size, self.z_size = x_size, h_size, z_size
+        (self.x_size, self.h_size, self.z_size) = (x_size, h_size, z_size)
         self.drop = nn.Dropout(dropout)
         xz = x_size + h_size + z_size
         self.gru_r = nn.Linear(xz, h_size)
@@ -297,19 +295,19 @@ class VMDHRec(nn.Module):
 
     def forward(self, x, y_onehot):
         x = self.drop(x)
-        b, l, _ = x.shape
+        (b, l, _) = x.shape
         h = torch.tanh(torch.randn(b, self.h_size, device=x.device, dtype=x.dtype))
         h_z = torch.tanh(torch.randn(b, self.z_size, device=x.device, dtype=x.dtype))
-        z, _ = self.post_z(h_z, is_prior=False)
-        g_list, y_list, kl_list = [], [], []
-        z_prior_list, z_post_list, h_list = [], [], []
+        (z, _) = self.post_z(h_z, is_prior=False)
+        (g_list, y_list, kl_list) = ([], [], [])
+        (z_prior_list, z_post_list, h_list) = ([], [], [])
         for t in range(l):
-            x_t, y_t = x[:, t], y_onehot[:, t]
+            (x_t, y_t) = (x[:, t], y_onehot[:, t])
             gate = torch.cat([x_t, h, z], dim=-1)
-            r, u = torch.sigmoid(self.gru_r(gate)), torch.sigmoid(self.gru_u(gate))
+            (r, u) = (torch.sigmoid(self.gru_r(gate)), torch.sigmoid(self.gru_u(gate)))
             h = (1 - u) * h + u * torch.tanh(self.gru_h(torch.cat([x_t, r * h, z], dim=-1)))
-            z_p, dist_p = self.prior_z(self.enc_prior(torch.cat([x_t, h], -1)), True)
-            z_q, dist_q = self.post_z(self.enc_post(torch.cat([x_t, h, y_t], -1)), False)
+            (z_p, dist_p) = self.prior_z(self.enc_prior(torch.cat([x_t, h], -1)), True)
+            (z_q, dist_q) = self.post_z(self.enc_post(torch.cat([x_t, h, y_t], -1)), False)
             kl_list.append(dist.kl_divergence(dist_q, dist_p).sum(-1))
             g_t = self.g_lin(torch.cat([x_t, h, z_q], -1))
             g_list.append(g_t)
@@ -331,8 +329,16 @@ class VMDHRec(nn.Module):
 class VMDDiscriminative(nn.Module):
     """TF _create_discriminative_vmd."""
 
-    def __init__(self, x_size, h_size, z_size, g_size, y_size=2,
-                 cell_type: Literal["gru", "ln-lstm"] = "gru", dropout=0.0):
+    def __init__(
+        self,
+        x_size,
+        h_size,
+        z_size,
+        g_size,
+        y_size=2,
+        cell_type: Literal["gru", "ln-lstm"] = "gru",
+        dropout=0.0,
+    ):
         super().__init__()
         self.z_size = z_size
         self.drop = nn.Dropout(dropout)
@@ -346,10 +352,10 @@ class VMDDiscriminative(nn.Module):
     def forward(self, x, t_idx):
         del t_idx
         x = self.drop(x)
-        b, l, _ = x.shape
-        h_s, _ = self.seq_cell(x)
+        (b, l, _) = x.shape
+        (h_s, _) = self.seq_cell(x)
         z_prev = torch.randn(b, self.z_size, device=x.device, dtype=x.dtype)
-        g_list, y_list, z_list = [], [], []
+        (g_list, y_list, z_list) = ([], [], [])
         for t in range(l):
             h_z = self.h_z(torch.cat([x[:, t], h_s[:, t], z_prev], -1))
             z_t = self.z_lin(h_z)
@@ -392,7 +398,7 @@ class TemporalAttnDecoder(nn.Module):
         v_stared = torch.nan_to_num(F.softmax(aux_score, dim=-1), nan=0.0)
         ctx = y_prob if self.daily_att == "y" else g
         att_c = torch.sum(v_stared.unsqueeze(-1) * ctx, dim=1)
-        return self.y_T_lin(torch.cat([att_c, g_T], dim=-1)), v_stared
+        return (self.y_T_lin(torch.cat([att_c, g_T], dim=-1)), v_stared)
 
 
 def mask_auxiliary_days(batch, seq_len, t_idx, device):
@@ -412,13 +418,15 @@ def generative_ata_loss(y_prob, y_T_prob, y_onehot, kl, v_stared, alpha, kl_lamb
     bi = torch.arange(b, device=y_onehot.device)
     ti = _target_index(t_idx)
     y_T_true = y_onehot[bi, ti]
-    obj_T = (y_T_true * torch.log(y_T_prob + eps)).sum(-1, keepdim=True) - kl_lambda * kl[bi, ti].unsqueeze(1)
+    obj_T = (y_T_true * torch.log(y_T_prob + eps)).sum(-1, keepdim=True) - kl_lambda * kl[
+        bi, ti
+    ].unsqueeze(1)
     obj = obj_T + (obj_aux * (alpha * v_stared)).sum(1, keepdim=True)
     return (-obj).mean()
 
 
-def discriminative_ata_loss(y_prob, y_T_prob, y_onehot, v_stared, alpha, t_idx, P=None, eps=1e-7):
-    """TF _create_discriminative_ata（含 MSIN 消息注意力正则 P_obj）。"""
+def discriminative_ata_loss(y_prob, y_T_prob, y_onehot, v_stared, alpha, t_idx, P=None, eps=1e-07):
+    """Discriminative ata loss."""
     log_y = torch.log(y_prob + eps)
     obj_aux = (y_onehot * log_y).sum(-1)
     b = y_onehot.size(0)
@@ -429,18 +437,14 @@ def discriminative_ata_loss(y_prob, y_T_prob, y_onehot, v_stared, alpha, t_idx, 
     obj = obj_T + (obj_aux * (alpha * v_stared)).sum(1, keepdim=True)
     loss = (-obj).mean()
     if P is not None:
-        new_p = P.clamp(min=1e-8, max=1.0)
+        new_p = P.clamp(min=1e-08, max=1.0)
         p_obj = (new_p * torch.log(new_p)).sum(dim=-1).mean()
-        loss = loss + (-p_obj)
+        loss = loss + -p_obj
     return loss
 
 
 class PENModel(nn.Module):
-    """
-    PEN assemble_graph（Model.py 中 # pen 分支）：
-      MEL -> MSIN(price, msg_embed) -> VMD -> TDA -> ATA
-    与 StockNet（# stocknet: MEL -> corpus_embed -> concat price）不同。
-    """
+    """Penmodel."""
 
     def __init__(
         self,
@@ -482,11 +486,15 @@ class PENModel(nn.Module):
         self.daily_att = daily_att if self.use_tda_y else "y"
         self.last_p = None
         z_size = z_size or h_size
-
         mel_cell = "gru" if mel_cell_type == "gru" else "basic"
         self.mel = MessageEmbedLayer(
-            vocab_size, word_embed_size, mel_h_size, pad_id,
-            cell_type=mel_cell, dropout_in=dropout_mel_in, dropout=dropout_mel,
+            vocab_size,
+            word_embed_size,
+            mel_h_size,
+            pad_id,
+            cell_type=mel_cell,
+            dropout_in=dropout_mel_in,
+            dropout=dropout_mel,
         )
         self.price_input_size = int(price_input_size)
         if variant_type == "tech":
@@ -495,7 +503,6 @@ class PENModel(nn.Module):
         else:
             self.msin = MSINEncoder(self.price_input_size, msin_h_size, mel_h_size, max_n_msgs)
             self.x_size = msin_h_size
-
         vmd_cell = "gru" if vmd_cell_type == "gru" else "ln-lstm"
         if variant_type == "discriminative":
             self.vmd = VMDDiscriminative(
@@ -513,7 +520,7 @@ class PENModel(nn.Module):
             self.last_p = None
             return price
         msg = self.mel(word_ids, n_words, ss_index)
-        x, p = self.msin(price, msg, n_msgs)
+        (x, p) = self.msin(price, msg, n_msgs)
         self.last_p = p
         return x
 
@@ -556,15 +563,7 @@ class PENModel(nn.Module):
         return self.vmd.y_lin(g_T)
 
     def forward(
-        self,
-        word_ids,
-        n_words,
-        ss_index,
-        n_msgs,
-        price,
-        y_onehot,
-        t_idx,
-        compute_loss=True,
+        self, word_ids, n_words, ss_index, n_msgs, price, y_onehot, t_idx, compute_loss=True
     ):
         x = self.dropout_vmd_in(self._build_x(word_ids, n_words, ss_index, n_msgs, price))
         if self.variant_type == "discriminative":
@@ -573,15 +572,13 @@ class PENModel(nn.Module):
             vmd_out = self.vmd(x, y_onehot, t_idx)
         else:
             vmd_out = self.vmd(x, y_onehot)
-
         mask_aux = mask_auxiliary_days(x.size(0), x.size(1), t_idx, x.device)
         g_T = self._g_T_infer_gen(x, vmd_out, t_idx)
         if self.use_tda_y:
-            y_T, v_stared = self.tda(vmd_out["g"], g_T, vmd_out["y_prob"], mask_aux)
+            (y_T, v_stared) = self.tda(vmd_out["g"], g_T, vmd_out["y_prob"], mask_aux)
         else:
             v_stared = self.tda(vmd_out["g"], g_T, vmd_out["y_prob"], mask_aux)[1]
             y_T = self._y_T_infer_gen(vmd_out, t_idx)
-
         loss = None
         if compute_loss:
             if self.variant_type == "discriminative":
@@ -590,10 +587,15 @@ class PENModel(nn.Module):
                 )
             else:
                 loss = generative_ata_loss(
-                    vmd_out["y_prob"], y_T, y_onehot, vmd_out["kl"],
-                    v_stared, self.alpha, self.kl_lambda, t_idx,
+                    vmd_out["y_prob"],
+                    y_T,
+                    y_onehot,
+                    vmd_out["kl"],
+                    v_stared,
+                    self.alpha,
+                    self.kl_lambda,
+                    t_idx,
                 )
-
         y_true = self._gather_target(y_onehot, t_idx)
         return {
             "loss": loss,

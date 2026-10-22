@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 """
 Train / eval StockNet on CSMD50/300 & CMIN-CN/US.
 
 Data alignment matches main_pen.py: split-lookback flat tensors (CminCnPenDataset),
 prev-trading-day news padding, strong_eval metrics.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import argparse
 import csv
 import json
@@ -19,17 +18,15 @@ import sys
 import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta
-
 import numpy as np
 import torch
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, confusion_matrix
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
-
 from main_pen import CminCnPenDataset, _resolve_news_source, split_lookback_periods
 from model_stocknet import StockNetModel
-from pen1_train import (
+from common import (
     evaluate as evaluate_flat,
     load_ckpt,
     save_ckpt,
@@ -38,7 +35,6 @@ from pen1_train import (
 from oversample_utils import apply_oversample_to_dataset_samples
 
 LOGGER = logging.getLogger("stocknet")
-
 _DATA_BUNDLE_CACHE: dict[tuple[str, str], dict] = {}
 
 
@@ -70,10 +66,7 @@ def _pen_samples_cache_tag(
     use_volume: bool = False,
 ) -> str:
     base = _pen_news_cache_tag(dataset_root, news_source)
-    return (
-        f"{base}_{data_mode}_d{max_n_days}_fn{int(filter_neutral)}_st{int(use_strong_only)}"
-        f"_vol{int(bool(use_volume))}_excl"
-    )
+    return f"{base}_{data_mode}_d{max_n_days}_fn{int(filter_neutral)}_st{int(use_strong_only)}_vol{int(bool(use_volume))}_excl"
 
 
 def date_in_pen_split(d: str, start: str, end: str) -> bool:
@@ -113,10 +106,10 @@ def _bundle_to_plain_dict(bundle: dict) -> dict:
     out = dict(bundle)
     news_texts = {}
     for comp, by_date in bundle.get("news_texts", {}).items():
-        news_texts[comp] = {d: dict(msgs) for d, msgs in by_date.items()}
+        news_texts[comp] = {d: dict(msgs) for (d, msgs) in by_date.items()}
     news_types = {}
     for comp, by_date in bundle.get("news_types", {}).items():
-        news_types[comp] = {d: dict(msgs) for d, msgs in by_date.items()}
+        news_types[comp] = {d: dict(msgs) for (d, msgs) in by_date.items()}
     out["news_texts"] = news_texts
     out["news_types"] = news_types
     return out
@@ -158,30 +151,27 @@ def log_info(msg: str, *args) -> None:
 def log_batch_acc(n_correct: int, n_total: int) -> float:
     return float(n_correct) / float(n_total) if n_total > 0 else 0.0
 
-_CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
-_ASCII_WORDCHAR_RE = re.compile(r"[A-Za-z0-9_@$']")
-TOKEN_RE_EN = re.compile(
-    r"[\u3400-\u4dbf\u4e00-\u9fff]|[A-Za-z0-9_@$']+|[^\w\s]",
-    re.UNICODE,
-)
 
+_CJK_RE = re.compile("[\\u3400-\\u4dbf\\u4e00-\\u9fff]")
+_ASCII_WORDCHAR_RE = re.compile("[A-Za-z0-9_@$']")
+TOKEN_RE_EN = re.compile("[\\u3400-\\u4dbf\\u4e00-\\u9fff]|[A-Za-z0-9_@$']+|[^\\w\\s]", re.UNICODE)
 DATASET_SPLITS = {
     "CSMD50": {
-          "train_start": "2021-01-01",
-                "train_end": "2023-01-01",
-                "val_start": "2023-01-02",
-                "val_end": "2024-01-02",
-                "test_start": "2024-01-03",
-                "test_end": "2024-12-31",
+        "train_start": "2021-01-01",
+        "train_end": "2023-01-01",
+        "val_start": "2023-01-02",
+        "val_end": "2024-01-02",
+        "test_start": "2024-01-03",
+        "test_end": "2024-12-31",
     },
-            "CSMD300": {
-                "train_start": "2021-01-01",
-                "train_end": "2023-01-01",
-                "val_start": "2023-01-02",
-                "val_end": "2024-01-02",
-                "test_start": "2024-01-03",
-                "test_end": "2024-12-31",
-            },
+    "CSMD300": {
+        "train_start": "2021-01-01",
+        "train_end": "2023-01-01",
+        "val_start": "2023-01-02",
+        "val_end": "2024-01-02",
+        "test_start": "2024-01-03",
+        "test_end": "2024-12-31",
+    },
     "CMIN-CN": {
         "train_start": "2018-01-01",
         "train_end": "2021-04-30",
@@ -198,7 +188,6 @@ DATASET_SPLITS = {
         "test_start": "2021-09-01",
         "test_end": "2021-12-31",
     },
-    # Align with dual_tf/data.py DatasetProfile "massive" (inclusive calendar ends).
     "MASSIVE": {
         "train_start": "2022-01-01",
         "train_end": "2023-12-31",
@@ -211,8 +200,8 @@ DATASET_SPLITS = {
 
 
 def calculate_mcc(y_true, y_pred):
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
-    num = (tp * tn) - (fp * fn)
+    (tn, fp, fn, tp) = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+    num = tp * tn - fp * fn
     den = np.sqrt(float(tp + fp) * float(tp + fn) * float(tn + fp) * float(tn + fn))
     return float(num / den) if den != 0 else 0.0
 
@@ -238,7 +227,7 @@ def load_price(directory_path, use_volume: bool = False):
     If use_volume=True, append volume return (parts[6]) → HLCV [4].
     CSMD50/300 volume col is converted to return vs prev volume (same scale as HLC).
     """
-    stock_data, label, raw_line = {}, {}, {}
+    (stock_data, label, raw_line) = ({}, {}, {})
     feat_end = 7 if use_volume else 6
     for filename in os.listdir(directory_path):
         if not filename.endswith(".txt"):
@@ -252,29 +241,29 @@ def load_price(directory_path, use_volume: bool = False):
             for line in f:
                 parts = line.strip().split("\t")
                 time = parts[0]
-                feats = [float(x) for x in parts[3:min(feat_end, len(parts))]]
+                feats = [float(x) for x in parts[3 : min(feat_end, len(parts))]]
                 if use_volume and len(feats) < 4:
                     feats = (feats + [0.0])[:4]
                 features = feats[: 4 if use_volume else 3]
                 stock_data[company_name][time] = features
                 label[company_name][time] = parts[1]
                 raw_line[company_name][time] = line.strip()
-    return stock_data, label, raw_line
+    return (stock_data, label, raw_line)
 
 
 def _get_content_and_type_csmd(item):
     if not isinstance(item, dict):
-        return None, None
+        return (None, None)
     content = item.get("内容") or item.get("content") or ""
     dtype = item.get("类型") or item.get("type") or ""
-    return (content.strip() if content else None), (dtype.strip() if dtype else None)
+    return (content.strip() if content else None, dtype.strip() if dtype else None)
 
 
 def load_news_and_types_from_llm_extract(llm_extract_news_type_dir):
     news_texts = defaultdict(lambda: defaultdict(dict))
     news_types = defaultdict(lambda: defaultdict(dict))
     if not os.path.exists(llm_extract_news_type_dir):
-        return news_texts, news_types
+        return (news_texts, news_types)
     for company in os.listdir(llm_extract_news_type_dir):
         company_dir = os.path.join(llm_extract_news_type_dir, company)
         if not os.path.isdir(company_dir):
@@ -290,19 +279,19 @@ def load_news_and_types_from_llm_extract(llm_extract_news_type_dir):
             except Exception:
                 continue
             for news_id, item in data.items():
-                content, dtype = _get_content_and_type_csmd(item)
+                (content, dtype) = _get_content_and_type_csmd(item)
                 if not content:
                     continue
                 news_texts[company][date_str][news_id] = content
                 news_types[company][date_str][news_id] = dtype if dtype else ""
-    return news_texts, news_types
+    return (news_texts, news_types)
 
 
 def load_news_and_types(news_dir, news_type_dir, source_filter: str | None = None):
     news_texts = defaultdict(lambda: defaultdict(dict))
     news_types = defaultdict(lambda: defaultdict(dict))
     if not os.path.isdir(news_dir):
-        return news_texts, news_types
+        return (news_texts, news_types)
     src_need = source_filter.strip().lower() if source_filter else None
     for company in os.listdir(news_dir):
         type_dir = os.path.join(news_type_dir, company)
@@ -342,7 +331,7 @@ def load_news_and_types(news_dir, news_type_dir, source_filter: str | None = Non
                 if news_id in id_to_text:
                     news_texts[company][date_str][news_id] = id_to_text[news_id]
                     news_types[company][date_str][news_id] = news_type
-    return news_texts, news_types
+    return (news_texts, news_types)
 
 
 def resolve_news_source(dataset_root: str, news_source: str = "auto") -> str | None:
@@ -369,15 +358,13 @@ def load_all_data(
     source_filter = resolve_news_source(dataset_root, news_source)
     src_key = source_filter or "all"
     mem_key = (root, src_key, bool(use_volume))
-    if use_cache and not rebuild_cache and mem_key in _DATA_BUNDLE_CACHE:
+    if use_cache and (not rebuild_cache) and (mem_key in _DATA_BUNDLE_CACHE):
         return _DATA_BUNDLE_CACHE[mem_key]
-
-    # News pickle cache is independent of price feat dim; reload price with use_volume.
     cache_path = _pen_news_cache_path(dataset_root, news_source)
     kind = detect_dataset_kind(dataset_root)
     price_dir = os.path.join(dataset_root, "price", "preprocessed")
-    stock_data, label, raw_line = load_price(price_dir, use_volume=use_volume)
-    if use_cache and not rebuild_cache and os.path.isfile(cache_path):
+    (stock_data, label, raw_line) = load_price(price_dir, use_volume=use_volume)
+    if use_cache and (not rebuild_cache) and os.path.isfile(cache_path):
         bundle = _load_pickle(cache_path)
         bundle = dict(bundle)
         bundle["stock_data"] = stock_data
@@ -388,14 +375,17 @@ def load_all_data(
         _DATA_BUNDLE_CACHE[mem_key] = bundle
         log_info("loaded news bundle cache: %s (use_volume=%s)", cache_path, use_volume)
         return bundle
-
-    if kind in ("CSMD50", "CSMD300"):
+    if kind == "CSMD300":
+        from common import load_raw_csmd_news
+        news_texts = load_raw_csmd_news(os.path.join(dataset_root, "news"))
+        news_types = {}
+    elif kind == "CSMD50":
         llm_dir = os.path.join(dataset_root, "llm_extract", "news_type")
-        news_texts, news_types = load_news_and_types_from_llm_extract(llm_dir)
+        (news_texts, news_types) = load_news_and_types_from_llm_extract(llm_dir)
     else:
         news_dir = os.path.join(dataset_root, "news")
         news_type_dir = os.path.join(dataset_root, "llm_extract", "news_type")
-        news_texts, news_types = load_news_and_types(
+        (news_texts, news_types) = load_news_and_types(
             news_dir, news_type_dir, source_filter=source_filter
         )
     bundle = {
@@ -415,28 +405,16 @@ def load_all_data(
         log_info("saved news bundle cache: %s", cache_path)
     return bundle
 
+
 def resolve_vocab_path(dataset_root: str) -> str:
     kind = detect_dataset_kind(dataset_root)
     _here = os.path.dirname(os.path.abspath(__file__))
-    # MTVC/baselines → MTVC/dict
     _pkg_dict = os.path.normpath(os.path.join(_here, "../dict"))
     candidates = {
-        "CSMD50": [
-            os.path.join(_pkg_dict, "dict_csmd.pkl"),
-            "./dict/dict_csmd.pkl",
-        ],
-        "CSMD300": [
-            os.path.join(_pkg_dict, "dict_csmd.pkl"),
-            "./dict/dict_csmd.pkl",
-        ],
-        "CMIN-CN": [
-            os.path.join(_pkg_dict, "dict_cn.pkl"),
-            "./dict/dict_cn.pkl",
-        ],
-        "CMIN-US": [
-            os.path.join(_pkg_dict, "dict_us.pkl"),
-            "./dict/dict_us.pkl",
-        ],
+        "CSMD50": [os.path.join(_pkg_dict, "dict_csmd.pkl"), "./dict/dict_csmd.pkl"],
+        "CSMD300": [os.path.join(_pkg_dict, "dict_csmd.pkl"), "./dict/dict_csmd.pkl"],
+        "CMIN-CN": [os.path.join(_pkg_dict, "dict_cn.pkl"), "./dict/dict_cn.pkl"],
+        "CMIN-US": [os.path.join(_pkg_dict, "dict_us.pkl"), "./dict/dict_us.pkl"],
         "MASSIVE": [
             os.path.join(_pkg_dict, "dict_massive.pkl"),
             "./dict/dict_massive.pkl",
@@ -506,10 +484,10 @@ def binary_mv_label(mv: float) -> float:
 def split_range_for_mode(mode: str, kind: str) -> tuple[str, str]:
     splits = DATASET_SPLITS[kind]
     if mode == "train":
-        return splits["train_start"], splits["train_end"]
+        return (splits["train_start"], splits["train_end"])
     if mode == "val":
-        return splits["val_start"], splits["val_end"]
-    return splits["test_start"], splits["test_end"]
+        return (splits["val_start"], splits["val_end"])
+    return (splits["test_start"], splits["test_end"])
 
 
 def enumerate_price_samples(
@@ -535,7 +513,7 @@ def enumerate_price_samples(
             mv = _parse_mv(lab_dict.get(target_date))
             if mv is None:
                 continue
-            if require_strong and not is_strong_mv(mv):
+            if require_strong and (not is_strong_mv(mv)):
                 continue
             samples.append((comp, target_date, float(mv)))
     return samples
@@ -543,10 +521,10 @@ def enumerate_price_samples(
 
 def _mv_to_onehot(mv: float, y_size: int = 2) -> list[float]:
     if y_size == 2:
-        if mv <= 1e-7:
+        if mv <= 1e-07:
             return [1.0, 0.0]
         return [0.0, 1.0]
-    thr1, thr2 = -0.004, 0.005
+    (thr1, thr2) = (-0.004, 0.005)
     if mv < thr1:
         return [1.0, 0.0, 0.0]
     if mv < thr2:
@@ -616,16 +594,14 @@ class Dataset(TorchDataset):
         self.data_mode = data_mode
         self.use_volume = bool(use_volume)
         self.price_feat_dim = 4 if self.use_volume else 3
-
         kind = detect_dataset_kind(dataset_root)
         splits = DATASET_SPLITS[kind]
         if mode == "train":
-            self.start_date, self.end_date = splits["train_start"], splits["train_end"]
+            (self.start_date, self.end_date) = (splits["train_start"], splits["train_end"])
         elif mode == "val":
-            self.start_date, self.end_date = splits["val_start"], splits["val_end"]
+            (self.start_date, self.end_date) = (splits["val_start"], splits["val_end"])
         else:
-            self.start_date, self.end_date = splits["test_start"], splits["test_end"]
-
+            (self.start_date, self.end_date) = (splits["test_start"], splits["test_end"])
         samples_cache = _pen_samples_cache_path(
             dataset_root,
             mode,
@@ -640,7 +616,7 @@ class Dataset(TorchDataset):
             not skip_sample_build
             and target_dates_filter is None
             and use_pen_cache
-            and not rebuild_pen_cache
+            and (not rebuild_pen_cache)
             and os.path.isfile(samples_cache)
         ):
             cached = _load_pickle(samples_cache)
@@ -663,13 +639,9 @@ class Dataset(TorchDataset):
             self.vocab_unk_id = int(self.vocab.get("<unk>", 0))
             self.tokenize_mode = infer_tokenize_mode(dataset_root)
             log_info(
-                "loaded %s samples from cache (%s, n=%d)",
-                mode,
-                samples_cache,
-                len(self.samples),
+                "loaded %s samples from cache (%s, n=%d)", mode, samples_cache, len(self.samples)
             )
             return
-
         bundle = load_all_data(
             dataset_root,
             news_source=news_source,
@@ -681,14 +653,12 @@ class Dataset(TorchDataset):
         self.label = bundle["label"]
         self.news_texts = bundle["news_texts"]
         self.companies = sorted(self.stock_data.keys())
-        self.company2id = {c: i for i, c in enumerate(self.companies)}
-
+        self.company2id = {c: i for (i, c) in enumerate(self.companies)}
         vocab_path = resolve_vocab_path(dataset_root)
         self.vocab = pkl.load(open(vocab_path, "rb"))
         self.vocab_pad_id = int(self.vocab.get("<pad>", 0))
         self.vocab_unk_id = int(self.vocab.get("<unk>", 0))
         self.tokenize_mode = infer_tokenize_mode(dataset_root)
-
         self.samples: list[dict] = []
         if skip_sample_build:
             log_info(
@@ -697,7 +667,6 @@ class Dataset(TorchDataset):
                 len(self.companies),
             )
             return
-
         date_filter = set(target_dates_filter) if target_dates_filter else None
         rng = random.Random(seed)
         specs = self._sample_target_specs()
@@ -709,10 +678,8 @@ class Dataset(TorchDataset):
             sample = self._build_sample(comp, td)
             if sample is not None:
                 self.samples.append(sample)
-
         if shuffle_build and mode == "train":
             rng.shuffle(self.samples)
-
         if use_pen_cache and target_dates_filter is None:
             _save_pickle(
                 {
@@ -753,17 +720,15 @@ class Dataset(TorchDataset):
         lab_dict = self.label.get(comp, {})
         dates_desc = sorted(day_dict.keys(), reverse=True)
         d_t_min = main_target_date - timedelta(days=self.max_n_days - 1)
-
-        ts, ys, prices, mv_percents = [], [], [], []
+        (ts, ys, prices, mv_percents) = ([], [], [], [])
         main_mv = None
-
         for d_str in dates_desc:
             d = datetime.strptime(d_str, "%Y-%m-%d").date()
             mv = _parse_mv(lab_dict.get(d_str))
             if mv is None:
                 continue
             if d == main_target_date:
-                if self.filter_neutral and (-0.005 <= mv < 0.0055):
+                if self.filter_neutral and -0.005 <= mv < 0.0055:
                     return None
                 main_mv = mv
                 ts.append(d)
@@ -777,18 +742,14 @@ class Dataset(TorchDataset):
                 prices.append(list(day_dict[d_str])[: self.price_feat_dim])
                 mv_percents.append(_mv_to_class(mv, self.y_size))
                 break
-
         t_len = len(ts)
-        if t_len == 0 or len(ys) != t_len or len(prices) != t_len or len(mv_percents) != t_len:
+        if t_len == 0 or len(ys) != t_len or len(prices) != t_len or (len(mv_percents) != t_len):
             return None
-
         for item in (ts, ys, mv_percents, prices):
             item.reverse()
-
         if self.use_strong_only and main_mv is not None:
             if not (main_mv > 0.0055 or main_mv < -0.005):
                 return None
-
         return {
             "T": t_len,
             "ts": ts,
@@ -825,13 +786,7 @@ class Dataset(TorchDataset):
                     break
             if msg_id > 0:
                 unaligned.append(
-                    [
-                        d,
-                        word_mat[:msg_id],
-                        ss_index_vec[:msg_id],
-                        n_word_vec[:msg_id],
-                        msg_id,
-                    ]
+                    [d, word_mat[:msg_id], ss_index_vec[:msg_id], n_word_vec[:msg_id], msg_id]
                 )
             d -= timedelta(days=1)
         unaligned.reverse()
@@ -842,12 +797,10 @@ class Dataset(TorchDataset):
         aligned_ss = np.zeros((t_len, self.max_n_msgs), dtype=np.int32)
         aligned_n_words = np.zeros((t_len, self.max_n_msgs), dtype=np.int32)
         aligned_n_msgs = np.zeros((t_len,), dtype=np.int32)
-
         aligned_msgs = [[] for _ in range(t_len)]
         aligned_ss_list = [[] for _ in range(t_len)]
         aligned_n_words_lists = [[] for _ in range(t_len)]
         aligned_n_msgs_lists = [[] for _ in range(t_len)]
-
         corpus_t_indices = []
         for corpus in unaligned_corpora:
             d = corpus[0]
@@ -859,22 +812,18 @@ class Dataset(TorchDataset):
                     break
             if not assigned:
                 return None
-
         if len(corpus_t_indices) != len(unaligned_corpora):
             return None
-
         for i, corpus in enumerate(unaligned_corpora):
             t = corpus_t_indices[i]
-            word_mat, ss_index_vec, n_word_vec, n_msgs = corpus[1:]
+            (word_mat, ss_index_vec, n_word_vec, n_msgs) = corpus[1:]
             aligned_msgs[t].append(word_mat)
             aligned_ss_list[t].append(ss_index_vec)
             aligned_n_words_lists[t].append(n_word_vec)
             aligned_n_msgs_lists[t].append(n_msgs)
-
-        n_fails = sum(1 for n_list in aligned_n_msgs_lists if sum(n_list) == 0)
+        n_fails = sum((1 for n_list in aligned_n_msgs_lists if sum(n_list) == 0))
         if n_fails > 0:
             return None
-
         for t in range(t_len):
             if not aligned_msgs[t]:
                 continue
@@ -886,7 +835,6 @@ class Dataset(TorchDataset):
             aligned_word[t, :n_msgs] = msgs[:n_msgs]
             aligned_ss[t, :n_msgs] = ss_indices[:n_msgs]
             aligned_n_words[t, :n_msgs] = n_word[:n_msgs]
-
         return {
             "msgs": aligned_word,
             "ss_indices": aligned_ss,
@@ -900,9 +848,7 @@ class Dataset(TorchDataset):
         if not prices_and_ts:
             return None
         unaligned = self._get_unaligned_corpora(comp, main_target_date)
-        aligned = self._trading_day_alignment(
-            prices_and_ts["ts"], prices_and_ts["T"], unaligned
-        )
+        aligned = self._trading_day_alignment(prices_and_ts["ts"], prices_and_ts["T"], unaligned)
         if not aligned:
             return None
         t_len = prices_and_ts["T"]
@@ -971,9 +917,7 @@ class RelaxedPenDataset(Dataset):
         unaligned = self._get_unaligned_corpora(comp, main_target_date)
         if not unaligned:
             return None
-        aligned = self._trading_day_alignment(
-            prices_and_ts["ts"], prices_and_ts["T"], unaligned
-        )
+        aligned = self._trading_day_alignment(prices_and_ts["ts"], prices_and_ts["T"], unaligned)
         if aligned is None or int(np.sum(aligned["n_msgs"])) == 0:
             return None
         t_len = prices_and_ts["T"]
@@ -996,23 +940,20 @@ class RelaxedPenDataset(Dataset):
         aligned_ss = np.zeros((t_len, self.max_n_msgs), dtype=np.int32)
         aligned_n_words = np.zeros((t_len, self.max_n_msgs), dtype=np.int32)
         aligned_n_msgs = np.zeros((t_len,), dtype=np.int32)
-
         aligned_msgs = [[] for _ in range(t_len)]
         aligned_ss_list = [[] for _ in range(t_len)]
         aligned_n_words_lists = [[] for _ in range(t_len)]
         aligned_n_msgs_lists = [[] for _ in range(t_len)]
-
         for corpus in unaligned_corpora:
             d = corpus[0]
             for t in range(t_len):
                 if d < ts[t]:
-                    word_mat, ss_index_vec, n_word_vec, n_msgs = corpus[1:]
+                    (word_mat, ss_index_vec, n_word_vec, n_msgs) = corpus[1:]
                     aligned_msgs[t].append(word_mat)
                     aligned_ss_list[t].append(ss_index_vec)
                     aligned_n_words_lists[t].append(n_word_vec)
                     aligned_n_msgs_lists[t].append(n_msgs)
                     break
-
         for t in range(t_len):
             if not aligned_msgs[t]:
                 continue
@@ -1024,7 +965,6 @@ class RelaxedPenDataset(Dataset):
             aligned_word[t, :n_msgs] = msgs[:n_msgs]
             aligned_ss[t, :n_msgs] = ss_indices[:n_msgs]
             aligned_n_words[t, :n_msgs] = n_word[:n_msgs]
-
         return {
             "msgs": aligned_word,
             "ss_indices": aligned_ss,
@@ -1053,7 +993,7 @@ class AllPenDataset(RelaxedPenDataset):
             look_back=self.max_n_days,
             require_strong=require_strong,
         )
-        return [(comp, target_date) for comp, target_date, _ in pairs]
+        return [(comp, target_date) for (comp, target_date, _) in pairs]
 
     def _empty_aligned(self, t_len: int) -> dict:
         return {
@@ -1106,7 +1046,7 @@ def pen_dataset_cls(data_mode: str):
 def filter_neutral_explicit_in_argv(argv: list[str] | None = None) -> bool:
     argv = argv if argv is not None else sys.argv
     flags = ("--filter-neutral", "--no-filter-neutral", "--filter_neutral", "--no-filter_neutral")
-    return any(flag in argv for flag in flags)
+    return any((flag in argv for flag in flags))
 
 
 def resolve_filter_neutral(data_mode: str, filter_neutral: bool, *, explicit: bool) -> bool:
@@ -1123,7 +1063,6 @@ def collate_pen_batch(batch, max_n_days: int):
     m = batch[0]["word_ids"].size(1)
     w = batch[0]["word_ids"].size(2)
     y_size = batch[0]["y"].size(-1)
-
     word_ids = torch.zeros(b, max_n_days, m, w, dtype=torch.long)
     ss_index = torch.zeros(b, max_n_days, m, dtype=torch.long)
     n_words = torch.zeros(b, max_n_days, m, dtype=torch.long)
@@ -1138,8 +1077,7 @@ def collate_pen_batch(batch, max_n_days: int):
     t_idx = torch.zeros(b, dtype=torch.long)
     stock_id = torch.zeros(b, dtype=torch.long)
     main_mv = torch.full((b,), float("nan"), dtype=torch.float32)
-    companies, dates = [], []
-
+    (companies, dates) = ([], [])
     for i, item in enumerate(batch):
         t = int(item["T"])
         word_ids[i, :t] = item["word_ids"]
@@ -1154,7 +1092,6 @@ def collate_pen_batch(batch, max_n_days: int):
             main_mv[i] = float(item["main_mv"])
         companies.append(item["company"])
         dates.append(item["target_date"])
-
     return {
         "word_ids": word_ids,
         "ss_index": ss_index,
@@ -1184,21 +1121,19 @@ def majority_acc_from_classes(all_true: list[int]) -> float:
 
 
 def filter_pen_predictions_by_strong_mask(
-    y_true: torch.Tensor,
-    y_pred: torch.Tensor,
-    main_mv: torch.Tensor,
+    y_true: torch.Tensor, y_pred: torch.Tensor, main_mv: torch.Tensor
 ) -> tuple[list[int], list[int]]:
     mask = pen_strong_eval_mask(main_mv).cpu()
     yt = y_true.detach().cpu().reshape(-1)
     yp = y_pred.detach().cpu().reshape(-1)
-    return yt[mask].tolist(), yp[mask].tolist()
+    return (yt[mask].tolist(), yp[mask].tolist())
 
 
 def set_seed(seed: int, deterministic: bool = True) -> None:
     """Seed Python/NumPy/PyTorch RNGs; optional cuDNN deterministic mode.
 
     deterministic=True  -> bit-reproducible (cudnn deterministic + CUBLAS workspace)
-    deterministic=False -> same as Pattern_Mining/normal/train.set_all_seeds (seed only)
+    deterministic=False -> same as MTVC/normal/train.set_all_seeds (seed only)
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -1244,6 +1179,7 @@ def _load_ckpt(path: str, device):
 
 _CKPT_META_KEYS = (
     "best_epoch",
+    "training_device",
     "best_val_score",
     "test_loss",
     "test_acc",
@@ -1259,8 +1195,8 @@ def _parse_ckpt(raw):
         meta = {k: raw[k] for k in _CKPT_META_KEYS if k in raw}
         if "test_rng_state" in raw:
             meta["test_rng_state"] = _normalize_rng_state_blob(raw["test_rng_state"])
-        return raw["state_dict"], meta
-    return raw, {}
+        return (raw["state_dict"], meta)
+    return (raw, {})
 
 
 def _load_ckpt_bundle(path: str, device):
@@ -1308,7 +1244,7 @@ def _capture_rng_state() -> dict:
     return state
 
 
-def _restore_rng_state(state: dict | None) -> None:
+def _restore_rng_state(state: dict | None, source_device=None, target_device=None) -> None:
     if not state:
         return
     state = _normalize_rng_state_blob(state) or {}
@@ -1319,9 +1255,16 @@ def _restore_rng_state(state: dict | None) -> None:
         cuda_states = list(state["torch_cuda"])
         if len(cuda_states) < n_devices:
             cuda_states.extend(
-                _as_byte_tensor(s) for s in torch.cuda.get_rng_state_all()[len(cuda_states):]
+                (_as_byte_tensor(s) for s in torch.cuda.get_rng_state_all()[len(cuda_states) :])
             )
         torch.cuda.set_rng_state_all(cuda_states[:n_devices])
+        if source_device is not None and target_device is not None:
+            source, target = torch.device(source_device), torch.device(target_device)
+            if source.type == target.type == "cuda":
+                index = source.index or 0
+                if index >= len(cuda_states):
+                    raise ValueError("Recorded training device has no saved sampling state")
+                torch.cuda.set_rng_state(cuda_states[index], device=target)
 
 
 def _log_final_test_check(
@@ -1333,16 +1276,15 @@ def _log_final_test_check(
 ) -> None:
     if ref is None:
         return
-    ref_loss, ref_acc, ref_mcc, ref_n = ref
+    (ref_loss, ref_acc, ref_mcc, ref_n) = ref
     match = (
-        abs(final_loss - ref_loss) < 1e-4
-        and abs(final_acc - ref_acc) < 1e-5
-        and abs(final_mcc - ref_mcc) < 1e-5
-        and final_n == ref_n
+        abs(final_loss - ref_loss) < 0.0001
+        and abs(final_acc - ref_acc) < 1e-05
+        and (abs(final_mcc - ref_mcc) < 1e-05)
+        and (final_n == ref_n)
     )
     log_info(
-        "[FINAL_TEST check] match=%s | epoch TEST loss=%.6f acc=%.4f mcc=%.4f n=%d | "
-        "re-run FINAL_TEST loss=%.6f acc=%.4f mcc=%.4f n=%d",
+        "[FINAL_TEST check] match=%s | epoch TEST loss=%.6f acc=%.4f mcc=%.4f n=%d | re-run FINAL_TEST loss=%.6f acc=%.4f mcc=%.4f n=%d",
         "YES" if match else "NO",
         ref_loss,
         ref_acc,
@@ -1368,18 +1310,16 @@ def _run_final_test(
 ):
     rng = (ckpt_meta or {}).get("test_rng_state")
     if rng:
-        _restore_rng_state(rng)
+        _restore_rng_state(rng, (ckpt_meta or {}).get("training_device"), device)
         log_info("restored test RNG state before FINAL_TEST (best_epoch=%d)", best_epoch)
     else:
-        log_info(
-            "no test RNG state in checkpoint; FINAL_TEST re-run may differ from epoch TEST"
-        )
-    final_loss, final_acc, final_mcc, final_n = evaluate_flat(
+        log_info("no test RNG state in checkpoint; FINAL_TEST re-run may differ from epoch TEST")
+    (final_loss, final_acc, final_mcc, final_n) = evaluate_flat(
         model, test_loader, device, max_n_days, "FINAL_TEST", LOGGER, strong_only
     )
     ref = ref_test_metrics or _test_metrics_from_meta(ckpt_meta or {})
     _log_final_test_check(ref, final_loss, final_acc, final_mcc, final_n)
-    return final_loss, final_acc, final_mcc, final_n
+    return (final_loss, final_acc, final_mcc, final_n)
 
 
 def _save_best_ckpt(
@@ -1395,13 +1335,14 @@ def _save_best_ckpt(
 ) -> None:
     payload = {
         "state_dict": model.state_dict(),
+        "training_device": str(next(model.parameters()).device),
         "best_epoch": int(best_epoch),
         "best_val_score": float(best_val_score),
         "kl_lambda": float(kl_lambda),
         "seed": int(seed),
     }
     if test_metrics is not None:
-        t_loss, t_acc, t_mcc, t_n = test_metrics
+        (t_loss, t_acc, t_mcc, t_n) = test_metrics
         payload["test_loss"] = float(t_loss)
         payload["test_acc"] = float(t_acc)
         payload["test_mcc"] = float(t_mcc)
@@ -1412,13 +1353,9 @@ def _save_best_ckpt(
 
 
 def _load_checkpoint_into_model(
-    model,
-    path: str,
-    device,
-    args=None,
-    log_label: str = "checkpoint",
+    model, path: str, device, args=None, log_label: str = "checkpoint"
 ) -> dict:
-    state_dict, meta = _load_ckpt_bundle(path, device)
+    (state_dict, meta) = _load_ckpt_bundle(path, device)
     model.load_state_dict(state_dict)
     log_info("loaded %s %s", log_label, path)
     if "kl_lambda" in meta:
@@ -1428,11 +1365,7 @@ def _load_checkpoint_into_model(
         ckpt_seed = int(meta["seed"])
         log_info("checkpoint seed=%d", ckpt_seed)
         if int(args.seed) != ckpt_seed:
-            log_info(
-                "align --seed to checkpoint seed=%d (was %d)",
-                ckpt_seed,
-                int(args.seed),
-            )
+            log_info("align --seed to checkpoint seed=%d (was %d)", ckpt_seed, int(args.seed))
             args.seed = ckpt_seed
             set_seed(args.seed, deterministic=bool(getattr(args, "deterministic", True)))
     return meta
@@ -1441,7 +1374,7 @@ def _load_checkpoint_into_model(
 @torch.no_grad()
 def evaluate(model, loader, device, max_n_days: int, split_name: str = ""):
     model.eval()
-    all_true, all_pred = [], []
+    (all_true, all_pred) = ([], [])
     total_loss = 0.0
     n_batches = 0
     n_all = 0
@@ -1461,7 +1394,7 @@ def evaluate(model, loader, device, max_n_days: int, split_name: str = ""):
             total_loss += float(out["loss"].item())
             n_batches += 1
         n_all += int(out["y_true_class"].numel())
-        yt, yp = filter_pen_predictions_by_strong_mask(
+        (yt, yp) = filter_pen_predictions_by_strong_mask(
             out["y_true_class"], out["y_pred_class"], batch["main_mv"]
         )
         all_true.extend(yt)
@@ -1482,7 +1415,7 @@ def evaluate(model, loader, device, max_n_days: int, split_name: str = ""):
             n_samples,
             majority,
         )
-    return avg_loss, acc, mcc, n_samples
+    return (avg_loss, acc, mcc, n_samples)
 
 
 def train_one_epoch(
@@ -1502,7 +1435,6 @@ def train_one_epoch(
     n_samples = 0
     n_steps = len(loader)
     log_info("[Epoch %03d] train start, %d batches", epoch, n_steps)
-
     for batch_idx, raw in enumerate(loader, start=1):
         batch = collate_pen_batch(raw, max_n_days)
         optimizer.zero_grad(set_to_none=True)
@@ -1521,17 +1453,15 @@ def train_one_epoch(
         if grad_clip > 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         optimizer.step()
-
         bs = int(out["y_true_class"].numel())
-        yt, yp = filter_pen_predictions_by_strong_mask(
+        (yt, yp) = filter_pen_predictions_by_strong_mask(
             out["y_true_class"], out["y_pred_class"], batch["main_mv"]
         )
-        n_correct += sum(int(t == p) for t, p in zip(yt, yp))
+        n_correct += sum((int(t == p) for (t, p) in zip(yt, yp)))
         n_samples += len(yt)
         batch_loss = float(loss.item())
         total_loss += batch_loss
         n_batches += 1
-
         if log_every > 0 and (batch_idx % log_every == 0 or batch_idx == n_steps):
             log_info(
                 "[Epoch %03d] batch %d/%d loss=%.6f acc=%.4f",
@@ -1541,19 +1471,15 @@ def train_one_epoch(
                 batch_loss,
                 log_batch_acc(n_correct, n_samples),
             )
-
     avg_loss = total_loss / max(n_batches, 1)
     train_acc = log_batch_acc(n_correct, n_samples)
-    log_info(
-        "[Epoch %03d] train done loss=%.6f acc=%.4f",
-        epoch,
-        avg_loss,
-        train_acc,
-    )
-    return avg_loss, train_acc
+    log_info("[Epoch %03d] train done loss=%.6f acc=%.4f", epoch, avg_loss, train_acc)
+    return (avg_loss, train_acc)
 
 
-def kl_lambda_at_step(step: int, anneal_rate: float, start_step: int, constant: float | None) -> float:
+def kl_lambda_at_step(
+    step: int, anneal_rate: float, start_step: int, constant: float | None
+) -> float:
     if step < start_step:
         return 0.0
     if constant is not None:
@@ -1586,18 +1512,18 @@ def _vocab_info(dataset_root: str):
     pad_id = int(vocab.get("<pad>", 0))
     vocab_vals = [int(v) for v in vocab.values() if isinstance(v, (int, np.integer))]
     vocab_size = max(len(vocab), max(vocab_vals) + 1 if vocab_vals else 1, pad_id + 1)
-    return vocab_path, vocab_size, pad_id
+    return (vocab_path, vocab_size, pad_id)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="StockNet on Pattern_Mining datasets (split-lookback flat tensors, same as main_pen)"
+        description="StockNet on MTVC datasets (split-lookback flat tensors, same as main_pen)"
     )
-    parser.add_argument("--dataset_root", type=str, default="./dataset/CSMD50")
+    parser.add_argument("--dataset_root", type=str, default="./data/CSMD50")
     parser.add_argument("--mode", type=str, default="train", choices=["train", "eval", "stats"])
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=30)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--grad_clip", type=float, default=15.0)
     parser.add_argument("--seed", type=int, default=789)
     parser.add_argument(
@@ -1613,12 +1539,21 @@ def main():
         default=True,
         help="True: cudnn deterministic (reproducible). False: seed only, like main.py train.set_all_seeds",
     )
-    parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu"
+    )
     parser.add_argument("--max_n_days", type=int, default=5)
-    parser.add_argument("--use_volume", action="store_true",
-                        help="append volume-return channel (HLCV) as price input")
-    parser.add_argument("--price_input_size", type=int, default=0,
-                        help="price feat dim; 0=auto (4 if --use_volume else 3)")
+    parser.add_argument(
+        "--use_volume",
+        action="store_true",
+        help="append volume-return channel (HLCV) as price input",
+    )
+    parser.add_argument(
+        "--price_input_size",
+        type=int,
+        default=0,
+        help="price feat dim; 0=auto (4 if --use_volume else 3)",
+    )
     parser.add_argument("--max_n_msgs", type=int, default=5)
     parser.add_argument("--max_n_words", type=int, default=30)
     parser.add_argument("--news_padding_k", type=int, default=5)
@@ -1626,7 +1561,9 @@ def main():
     parser.add_argument("--mel_h_size", type=int, default=100)
     parser.add_argument("--h_size", type=int, default=150)
     parser.add_argument("--g_size", type=int, default=50)
-    parser.add_argument("--variant_type", type=str, default="hedge", choices=["hedge", "fund", "tech"])
+    parser.add_argument(
+        "--variant_type", type=str, default="hedge", choices=["hedge", "fund", "tech"]
+    )
     parser.add_argument("--vmd_rec", type=str, default="zh", choices=["zh", "h"])
     parser.add_argument("--daily_att", type=str, default="y", choices=["y", "g"])
     parser.add_argument("--alpha", type=float, default=0.5)
@@ -1650,10 +1587,10 @@ def main():
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--ckpt", type=str, default="")
     parser.add_argument("--save_dir", type=str, default="./checkpoints/stocknet")
-    parser.add_argument("--log_dir", type=str, default="./logs/stocknet", help="训练日志目录")
-    parser.add_argument("--log_file", type=str, default="", help="指定日志文件；默认自动生成到 log_dir")
-    parser.add_argument("--log_every", type=int, default=10, help="每 N 个 batch 打印一次训练进度，0=仅 epoch 末")
-    parser.add_argument("--eval_test_each_epoch", action="store_true", help="每个 epoch 结束后在 test 上评估并写日志")
+    parser.add_argument("--log_dir", type=str, default="./logs/stocknet", help="Log dir.")
+    parser.add_argument("--log_file", type=str, default="", help="Log file.")
+    parser.add_argument("--log_every", type=int, default=10, help="Log every.")
+    parser.add_argument("--eval_test_each_epoch", action="store_true", help="Eval test each epoch.")
     parser.add_argument("--es_patience", type=int, default=5)
     parser.add_argument(
         "--best_metric",
@@ -1670,14 +1607,12 @@ def main():
     )
     args = parser.parse_args()
     args.news_source = _resolve_news_source(args.dataset_root, args.news_source)
-
     kind = detect_dataset_kind(args.dataset_root)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = args.log_file
     if not log_file and args.mode in ("train", "eval"):
         log_file = os.path.join(args.log_dir, f"stocknet_{kind.lower()}_{ts}.log")
     setup_logger(log_file if args.mode != "stats" else None)
-
     set_seed(args.seed, deterministic=bool(args.deterministic))
     log_info("seed=%d deterministic=%s", int(args.seed), bool(args.deterministic))
     device = torch.device(args.device)
@@ -1689,25 +1624,22 @@ def main():
         args.news_source,
         args.strong_eval,
     )
-
     if args.mode == "stats":
         for split in ("train", "val", "test"):
             ds = _make_flat_dataset(split, args, shuffle_build=False)
-            start, end = split_lookback_periods(kind)[split]
-            strong_n = sum(1 for s in ds.samples if s.get("strong"))
+            (start, end) = split_lookback_periods(kind)[split]
+            strong_n = sum((1 for s in ds.samples if s.get("strong")))
             log_info("[%s] n=%d strong=%d dates %s..%s", split, len(ds), strong_n, start, end)
         return
-
     log_info("building datasets (split-lookback, same as main_pen)...")
     train_ds = _make_flat_dataset("train", args, shuffle_build=True)
     apply_oversample_to_dataset_samples(
-        train_ds, str(getattr(args, "train_oversample_extra", "") or ""), log_fn=log_info,
+        train_ds, str(getattr(args, "train_oversample_extra", "") or ""), log_fn=log_info
     )
     val_ds = _make_flat_dataset("val", args, shuffle_build=False)
     test_ds = _make_flat_dataset("test", args, shuffle_build=False)
     log_info("samples train=%d val=%d test=%d", len(train_ds), len(val_ds), len(test_ds))
-
-    vocab_path, vocab_size, pad_id = _vocab_info(args.dataset_root)
+    (vocab_path, vocab_size, pad_id) = _vocab_info(args.dataset_root)
     log_info("vocab=%s size=%d", vocab_path, vocab_size)
     log_info(
         "hparams batch_size=%d epochs=%d lr=%g variant=%s vmd_rec=%s daily_att=%s alpha=%g",
@@ -1719,12 +1651,10 @@ def main():
         args.daily_att,
         args.alpha,
     )
-
     loader_kw = dict(num_workers=args.num_workers, collate_fn=lambda b: b)
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, **loader_kw)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, **loader_kw)
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False, **loader_kw)
-
     price_input_size = args.price_input_size or (4 if args.use_volume else 3)
     model = StockNetModel(
         vocab_size=vocab_size,
@@ -1742,26 +1672,45 @@ def main():
         alpha=args.alpha,
         price_input_size=price_input_size,
     ).to(device)
-
     if args.mode == "eval":
         ckpt_path = args.ckpt or os.path.join(args.save_dir, f"best_{kind.lower()}.pt")
+        if not os.path.isfile(ckpt_path):
+            raise FileNotFoundError(ckpt_path)
         if os.path.isfile(ckpt_path):
-            state, meta = load_ckpt(ckpt_path, device)
+            (state, meta) = load_ckpt(ckpt_path, device)
             model.load_state_dict(state)
             if "kl_lambda" in meta:
                 model.set_kl_lambda(meta["kl_lambda"])
             log_info("loaded %s", ckpt_path)
+            if "training_device" not in meta:
+                from pathlib import Path
+                run = Path(ckpt_path).resolve().parent
+                info = run / "reproduce_info.json"
+                if info.is_file():
+                    meta["training_device"] = json.loads(info.read_text()).get("device")
+                if not meta.get("training_device"):
+                    log = run.parent.parent.parent / "ablation_logs" / run.parent.name / (run.name + ".log")
+                    if log.is_file():
+                        match = re.search(r"device=(cuda(?::[0-9]+)?|cpu)", log.read_text()[:10000])
+                        if match:
+                            meta["training_device"] = match.group(1)
+                if meta.get("training_device"):
+                    log_info("recorded training device=%s; inference device=%s", meta["training_device"], device)
+                else:
+                    log_info("training device unavailable; historical multi-GPU state cannot be remapped")
         evaluate_flat(model, val_loader, device, args.max_n_days, "VAL", LOGGER, args.strong_eval)
-        evaluate_flat(model, test_loader, device, args.max_n_days, "TEST", LOGGER, args.strong_eval)
+        _run_final_test(
+            model, test_loader, device, args.max_n_days,
+            ckpt_meta=meta, ref_test_metrics=None,
+            best_epoch=int(meta.get("best_epoch", 0)), strong_only=args.strong_eval,
+        )
         return
-
     if args.ckpt and os.path.isfile(args.ckpt):
-        state, meta = load_ckpt(args.ckpt, device)
+        (state, meta) = load_ckpt(args.ckpt, device)
         model.load_state_dict(state)
         if "kl_lambda" in meta:
             model.set_kl_lambda(meta["kl_lambda"])
         log_info("loaded init checkpoint %s", args.ckpt)
-
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     os.makedirs(args.save_dir, exist_ok=True)
     global_step = 0
@@ -1771,13 +1720,12 @@ def main():
     best_test_metrics = None
     stale = 0
     log_info("training start best_metric=%s save_dir=%s", args.best_metric, args.save_dir)
-
     for epoch in range(1, args.epochs + 1):
         kl_l = kl_lambda_at_step(
             global_step, args.kl_anneal_rate, args.kl_start_step, args.constant_kl_lambda
         )
         model.set_kl_lambda(kl_l)
-        train_loss, train_acc = train_one_epoch_flat(
+        (train_loss, train_acc) = train_one_epoch_flat(
             model,
             train_loader,
             optimizer,
@@ -1790,7 +1738,7 @@ def main():
             args.strong_eval,
         )
         global_step += max(len(train_loader), 1)
-        val_loss, val_acc, val_mcc, _ = evaluate_flat(
+        (val_loss, val_acc, val_mcc, _) = evaluate_flat(
             model, val_loader, device, args.max_n_days, "VAL", LOGGER, args.strong_eval
         )
         if args.best_metric == "val_loss":
@@ -1803,13 +1751,11 @@ def main():
         test_rng_state = None
         if args.eval_test_each_epoch:
             test_rng_state = _capture_rng_state()
-            test_loss, test_acc, test_mcc, test_n = evaluate_flat(
+            (test_loss, test_acc, test_mcc, test_n) = evaluate_flat(
                 model, test_loader, device, args.max_n_days, "TEST", LOGGER, args.strong_eval
             )
             log_info(
-                "[Epoch %03d] summary train_loss=%.6f train_acc=%.4f val_loss=%.6f "
-                "val_acc=%.4f val_mcc=%.4f %s=%.4f test_loss=%.6f "
-                "test_acc=%.4f test_mcc=%.4f kl_lambda=%.4f",
+                "[Epoch %03d] summary train_loss=%.6f train_acc=%.4f val_loss=%.6f val_acc=%.4f val_mcc=%.4f %s=%.4f test_loss=%.6f test_acc=%.4f test_mcc=%.4f kl_lambda=%.4f",
                 epoch,
                 train_loss,
                 train_acc,
@@ -1825,8 +1771,7 @@ def main():
             )
         else:
             log_info(
-                "[Epoch %03d] summary train_loss=%.6f train_acc=%.4f val_loss=%.6f "
-                "val_acc=%.4f val_mcc=%.4f %s=%.4f kl_lambda=%.4f",
+                "[Epoch %03d] summary train_loss=%.6f train_acc=%.4f val_loss=%.6f val_acc=%.4f val_mcc=%.4f %s=%.4f kl_lambda=%.4f",
                 epoch,
                 train_loss,
                 train_acc,
@@ -1844,7 +1789,8 @@ def main():
             if args.eval_test_each_epoch:
                 best_test_metrics = (test_loss, test_acc, test_mcc, test_n)
             else:
-                test_loss, test_acc, test_mcc, test_n = evaluate_flat(
+                test_rng_state = _capture_rng_state()
+                (test_loss, test_acc, test_mcc, test_n) = evaluate_flat(
                     model, test_loader, device, args.max_n_days, "TEST", LOGGER, args.strong_eval
                 )
                 best_test_metrics = (test_loss, test_acc, test_mcc, test_n)
@@ -1861,21 +1807,19 @@ def main():
                 test_mcc=test_mcc,
                 test_n=test_n,
                 test_rng_state=test_rng_state,
+                training_device=str(device),
             )
-            log_info(
-                "saved best checkpoint (%s=%.4f) -> %s",
-                args.best_metric, score, ckpt_path,
-            )
+            log_info("saved best checkpoint (%s=%.4f) -> %s", args.best_metric, score, ckpt_path)
         else:
             stale += 1
             log_info("no val improvement, stale=%d/%d", stale, args.es_patience)
             if stale >= args.es_patience:
                 log_info(
                     "[EARLY STOP] no %s improvement for %d epochs",
-                    args.best_metric, args.es_patience,
+                    args.best_metric,
+                    args.es_patience,
                 )
                 break
-
     best_ckpt = os.path.join(args.save_dir, f"best_{kind.lower()}.pt")
     ckpt_meta: dict = {}
     if os.path.isfile(best_ckpt):
@@ -1890,18 +1834,13 @@ def main():
             best_step = max(0, (best_epoch - 1) * len(train_loader))
             model.set_kl_lambda(
                 kl_lambda_at_step(
-                    best_step,
-                    args.kl_anneal_rate,
-                    args.kl_start_step,
-                    args.constant_kl_lambda,
+                    best_step, args.kl_anneal_rate, args.kl_start_step, args.constant_kl_lambda
                 )
             )
             log_info(
-                "FINAL eval kl_lambda=%.4f (matched to best_epoch=%d)",
-                model.kl_lambda,
-                best_epoch,
+                "FINAL eval kl_lambda=%.4f (matched to best_epoch=%d)", model.kl_lambda, best_epoch
             )
-    test_loss, test_acc, test_mcc, _ = _run_final_test(
+    (test_loss, test_acc, test_mcc, _) = _run_final_test(
         model,
         test_loader,
         device,

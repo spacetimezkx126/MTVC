@@ -1,0 +1,3 @@
+# Compatibility filename requested for environment installation.
+# This installs the complete project environment, not only the requests library.
+-r requirements.txt

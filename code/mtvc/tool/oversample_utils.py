@@ -1,14 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Massive-train oversample helper (match test positive rate).
+"""Minimal oversample helper (CSMD50 does not use train_oversample_extra).
 
-Role
-----
-- Load ``train_oversample_extra.jsonl`` (company, date) → extra sampling weights.
-- Used only when ``--train_oversample_extra`` is set (Massive paper runs).
+Previously lived under dual_tf/; stubbed here so diagram_dual_tf overlay is self-contained.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import json
 import os
 from typing import Any
@@ -35,11 +30,11 @@ def load_oversample_extra_counts(path: str) -> dict[tuple[str, str], int]:
     if isinstance(data, dict):
         for k, v in data.items():
             if isinstance(k, str) and "|" in k:
-                c, d = k.split("|", 1)
-                out[(c, d[:10])] = int(v)
+                (c, d) = k.split("|", 1)
+                out[c, d[:10]] = int(v)
             elif isinstance(v, dict):
                 for d, n in v.items():
-                    out[(str(k), str(d)[:10])] = int(n)
+                    out[str(k), str(d)[:10]] = int(n)
     elif isinstance(data, list):
         for obj in data:
             if not isinstance(obj, dict):
@@ -51,8 +46,5 @@ def load_oversample_extra_counts(path: str) -> dict[tuple[str, str], int]:
 
 def summarize_oversample_counts(counts: dict[tuple[str, str], int] | None) -> dict[str, Any]:
     counts = counts or {}
-    n_extra = int(sum(max(0, int(v)) for v in counts.values()))
-    return {
-        "n_unique_keys": len(counts),
-        "n_extra_copies": n_extra,
-    }
+    n_extra = int(sum((max(0, int(v)) for v in counts.values())))
+    return {"n_unique_keys": len(counts), "n_extra_copies": n_extra}

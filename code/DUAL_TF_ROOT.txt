@@ -1,3 +1,0 @@
-# Default package root for path resolution is the MTVC directory
-# (parent of this ``code/`` folder). Override with env ``DUAL_TF_MODEL_DIR``.
-..

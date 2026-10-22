@@ -1,0 +1,4 @@
+# Optional data acquisition tools; not needed for checkpoint evaluation.
+-r requirements.txt
+akshare
+massive

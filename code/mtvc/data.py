@@ -1,17 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Datasets and batching for CSMD50 / CSMD300 / Massive.
+"""MTVC experiment utilities."""
 
-Role
-----
-- ``DatasetProfile`` date ranges and paths (``dict_csmd.pkl`` / ``dict_massive.pkl``).
-- ``MarketWindowDataset``: 5-day price window + news bag → batch for ``Model``.
-- Collate / vocab helpers used by ``train.py``.
-
-Paper runs use ``--split_mode contiguous`` only.
-"""
 from __future__ import annotations
-
 import argparse
 import calendar
 import csv
@@ -27,34 +16,54 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
-
 import numpy as np
 import torch
 from transformers import AutoModel, AutoTokenizer, BertTokenizer
 
-_DIR = os.path.dirname(os.path.abspath(__file__))          # .../MTVC/code/mtvc
-_CODE_ROOT = os.path.dirname(_DIR)                         # .../MTVC/code
-_MTVC_ROOT = os.path.dirname(_CODE_ROOT)                   # .../MTVC
-# Alias used by pattern/data helpers (package root).
-_PATTERN_ROOT = _MTVC_ROOT
+_INPUT_ORDER_ROOTS = {}
+_INPUT_ORDER_TABLES = {}
 
 
-def _default_finbert_path(*, us: bool = False) -> str:
-    """FinBERT checkpoint under MTVC/models/ (optional; override with FINBERT_MODEL_PATH)."""
-    env = (os.environ.get("FINBERT_MODEL_PATH") or "").strip()
-    if env:
-        return env
-    name = "finbert-pretrain" if us else "finbert-tone-chinese"
-    return os.path.join(_MTVC_ROOT, "models", name)
+def _list_input_directory(path):
+    from pathlib import Path
+
+    folder = Path(path).resolve()
+    actual = [name for name in os.listdir(folder) if name != ".mtvc_file_order.json"]
+    if folder not in _INPUT_ORDER_ROOTS:
+        root = next(
+            (p for p in (folder, *folder.parents) if (p / ".mtvc_file_order.json").is_file()), None
+        )
+        _INPUT_ORDER_ROOTS[folder] = root
+    root = _INPUT_ORDER_ROOTS[folder]
+    if root is None:
+        return actual
+    if root not in _INPUT_ORDER_TABLES:
+        _INPUT_ORDER_TABLES[root] = json.loads((root / ".mtvc_file_order.json").read_text())[
+            "directories"
+        ]
+    relative = folder.relative_to(root).as_posix()
+    order = _INPUT_ORDER_TABLES[root].get(relative)
+    if order is None:
+        return actual
+    if set(order) != set(actual):
+        raise RuntimeError(
+            "Dataset files differ from the recorded input-order manifest: " + relative
+        )
+    return list(order)
+
+
+_DIR = os.path.dirname(os.path.abspath(__file__))
+_PATTERN_ROOT = os.environ.get("DUAL_TF_MODEL_DIR", os.path.dirname(os.path.dirname(_DIR)))
 
 
 def _dict_search_dirs() -> list[str]:
     dirs: list[str] = []
     for d in (
-        os.path.join(_MTVC_ROOT, "dict"),
-        os.path.join(_CODE_ROOT, "dict"),
+        os.path.join(_PATTERN_ROOT, "dict"),
         os.path.join(_DIR, "dict"),
-        "./dict",
+        "dict",
+        "dict",
+        os.path.join(_PATTERN_ROOT, "dict"),
     ):
         if d not in dirs:
             dirs.append(d)
@@ -65,14 +74,14 @@ def _primary_dict_dir() -> str:
     for d in _dict_search_dirs():
         if os.path.isdir(d):
             return d
-    return os.path.join(_MTVC_ROOT, "dict")
+    return os.path.join(_PATTERN_ROOT, "dict")
 
 
 DICT_DIR = _primary_dict_dir()
 
 
 def resolve_vocab_path(path: str | None, *fallback_names: str) -> str:
-    """Resolve vocab path under MTVC/dict (and optional relative ./dict)."""
+    """Resolve vocab path."""
     candidates: list[str] = []
     if path:
         candidates.append(path)
@@ -94,15 +103,15 @@ def resolve_vocab_path(path: str | None, *fallback_names: str) -> str:
 
 
 def is_us_vocab_path(vocab_path: str) -> bool:
-    """英文词级词表：dict_massive（空白分词）；其余按字符级。"""
+    """Is us vocab path."""
     base = os.path.basename(vocab_path).lower()
-    return "dict_massive" in base
+    return "dict_us" in base or "dict_massive" in base or "dict_stocknet" in base
 
 
 def is_cn_word_vocab_path(vocab_path: str) -> bool:
-    """中文词级词表（可选覆盖）：dict_*jieba* / dict_*csmd_word* → jieba 分词。"""
+    """Is cn word vocab path."""
     base = os.path.basename(vocab_path).lower()
-    return ("jieba" in base) or ("csmd_word" in base)
+    return "jieba" in base or "sogou_word" in base or "csmd_word" in base
 
 
 def is_word_vocab_path(vocab_path: str) -> bool:
@@ -162,14 +171,10 @@ def pad_vocab_ids(ids: list[int], pad_id: int, max_len: int) -> tuple[list[int],
     if pad_len > 0:
         ids = ids + [pad_id] * pad_len
         attn = attn + [0] * pad_len
-    return ids, attn
+    return (ids, attn)
 
-# ===== constants =====
-
-# --- CSMD news-type constants ---
 
 NUM_VIRTUAL_NEWS_TYPES = 13
-
 _INDIVIDUAL_SUBTYPE_NAMES = {
     1: "公司经营",
     2: "资本运作",
@@ -183,9 +188,7 @@ _INDIVIDUAL_SUBTYPE_NAMES = {
     10: "行业与政策影响",
     11: "其他",
 }
-
 NUM_RULE_TREND = 8
-
 RULE_TREND_CN_TO_ID = {
     "冲高回落": 0,
     "宽幅震荡": 1,
@@ -196,8 +199,7 @@ RULE_TREND_CN_TO_ID = {
     "探底回升": 6,
     "窄幅横盘": 7,
 }
-RULE_TREND_ID_TO_CN = {v: k for k, v in RULE_TREND_CN_TO_ID.items()}
-# 与 dataset/*/pattern/trend/*.csv 中 main_trend_en 一致
+RULE_TREND_ID_TO_CN = {v: k for (k, v) in RULE_TREND_CN_TO_ID.items()}
 RULE_TREND_CN_TO_EN = {
     "冲高回落": "Peak and Pullback",
     "宽幅震荡": "Wide Range Fluctuation",
@@ -208,9 +210,7 @@ RULE_TREND_CN_TO_EN = {
     "探底回升": "Bottom and Rebound",
     "窄幅横盘": "Narrow Range",
 }
-RULE_TREND_ID_TO_EN = {tid: RULE_TREND_CN_TO_EN[cn] for cn, tid in RULE_TREND_CN_TO_ID.items()}
-
-# Seasonal pooled split: H1=train, Jul–Sep=val, Oct–Dec=test (all years).
+RULE_TREND_ID_TO_EN = {tid: RULE_TREND_CN_TO_EN[cn] for (cn, tid) in RULE_TREND_CN_TO_ID.items()}
 SEASONAL_H1Q3Q4_MONTHS: dict[str, set[int]] = {
     "train": {1, 2, 3, 4, 5, 6},
     "val": {7, 8, 9},
@@ -244,23 +244,16 @@ def date_in_stagger_4y(d: str, mode: str, year0: int) -> bool:
     md = str(mode)
     if md == "train":
         return (
-            (r == 0 and 1 <= m <= 9)
+            r == 0
+            and 1 <= m <= 9
             or (r == 1 and 4 <= m <= 12)
             or (r == 2 and 7 <= m <= 12)
             or (r == 3 and 1 <= m <= 3)
         )
     if md == "val":
-        return (
-            (r == 0 and 10 <= m <= 12)
-            or (r == 2 and 1 <= m <= 3)
-            or (r == 3 and 4 <= m <= 7)
-        )
+        return r == 0 and 10 <= m <= 12 or (r == 2 and 1 <= m <= 3) or (r == 3 and 4 <= m <= 7)
     if md == "test":
-        return (
-            (r == 1 and 1 <= m <= 3)
-            or (r == 2 and 4 <= m <= 6)
-            or (r == 3 and 8 <= m <= 12)
-        )
+        return r == 1 and 1 <= m <= 3 or (r == 2 and 4 <= m <= 6) or (r == 3 and 8 <= m <= 12)
     return False
 
 
@@ -294,7 +287,7 @@ def build_week_roundrobin_roles(global_dates: list[str]) -> dict[str, str]:
         if k not in seen:
             seen.add(k)
             weeks_ordered.append(k)
-    week_idx = {k: i for i, k in enumerate(weeks_ordered)}
+    week_idx = {k: i for (i, k) in enumerate(weeks_ordered)}
     roles: dict[str, str] = {}
     for d in global_dates:
         i = week_idx[week_of[d]] % 10
@@ -346,7 +339,7 @@ def date_in_week_roundrobin(
         return True
     pw = max(1, int(price_window))
     if date_to_pos is None:
-        date_to_pos = {x: i for i, x in enumerate(global_dates)}
+        date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     pos = date_to_pos.get(str(d)[:10])
     if pos is None or pos < 1:
         return False
@@ -358,13 +351,11 @@ def date_in_week_roundrobin(
 
 
 def week_roundrobin_split_stats(
-    global_dates: list[str],
-    *,
-    price_window: int = 5,
+    global_dates: list[str], *, price_window: int = 5
 ) -> dict[str, Any]:
     """Counts for logging: raw roles vs train-after-purge."""
     roles = build_week_roundrobin_roles(global_dates)
-    date_to_pos = {x: i for i, x in enumerate(global_dates)}
+    date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     raw = {"train": 0, "val": 0, "test": 0}
     for d in global_dates:
         raw[roles[d]] = raw.get(roles[d], 0) + 1
@@ -372,11 +363,16 @@ def week_roundrobin_split_stats(
         d
         for d in global_dates
         if date_in_week_roundrobin(
-            d, "train", global_dates, price_window=price_window, roles=roles, date_to_pos=date_to_pos
+            d,
+            "train",
+            global_dates,
+            price_window=price_window,
+            roles=roles,
+            date_to_pos=date_to_pos,
         )
     ]
-    val_n = sum(1 for d in global_dates if roles[d] == "val")
-    test_n = sum(1 for d in global_dates if roles[d] == "test")
+    val_n = sum((1 for d in global_dates if roles[d] == "val"))
+    test_n = sum((1 for d in global_dates if roles[d] == "test"))
     pw = max(1, int(price_window))
     return {
         "n_dates": len(global_dates),
@@ -394,13 +390,12 @@ def timefrac_622_cut_indices(n: int) -> tuple[int, int]:
     """Return (train_end, val_end) exclusive indices for 60%/20%/20% on n days."""
     n = int(n)
     if n <= 0:
-        return 0, 0
+        return (0, 0)
     train_end = int(n * 0.6)
     val_end = int(n * 0.8)
-    # ensure non-empty splits when n is large enough
     train_end = max(1, min(train_end, n - 2)) if n >= 3 else max(0, n - 2)
     val_end = max(train_end + 1, min(val_end, n - 1)) if n >= 3 else max(train_end, n - 1)
-    return train_end, val_end
+    return (train_end, val_end)
 
 
 def date_in_timefrac_622(
@@ -421,12 +416,12 @@ def date_in_timefrac_622(
     if not global_dates:
         return False
     if date_to_pos is None:
-        date_to_pos = {x: i for i, x in enumerate(global_dates)}
+        date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     pos = date_to_pos.get(str(d)[:10])
     if pos is None:
         return False
     if train_end is None or val_end is None:
-        train_end, val_end = timefrac_622_cut_indices(len(global_dates))
+        (train_end, val_end) = timefrac_622_cut_indices(len(global_dates))
     md = str(mode)
     if md == "train":
         return 0 <= pos < int(train_end)
@@ -438,14 +433,16 @@ def date_in_timefrac_622(
 
 
 def timefrac_622_split_stats(global_dates: list[str]) -> dict[str, Any]:
-    train_end, val_end = timefrac_622_cut_indices(len(global_dates))
+    (train_end, val_end) = timefrac_622_cut_indices(len(global_dates))
     n = len(global_dates)
     return {
         "n_dates": n,
         "train_end_idx": train_end,
         "val_end_idx": val_end,
         "train_range": (global_dates[0], global_dates[train_end - 1]) if train_end > 0 else None,
-        "val_range": (global_dates[train_end], global_dates[val_end - 1]) if val_end > train_end else None,
+        "val_range": (
+            (global_dates[train_end], global_dates[val_end - 1]) if val_end > train_end else None
+        ),
         "test_range": (global_dates[val_end], global_dates[-1]) if val_end < n else None,
         "counts": {
             "train": train_end,
@@ -483,7 +480,7 @@ def build_month_roundrobin_roles(global_dates: list[str]) -> dict[str, str]:
         if k not in seen:
             seen.add(k)
             months_ordered.append(k)
-    month_idx = {k: i for i, k in enumerate(months_ordered)}
+    month_idx = {k: i for (i, k) in enumerate(months_ordered)}
     roles: dict[str, str] = {}
     for d in global_dates:
         i = month_idx[month_of[d]] % 6
@@ -523,7 +520,7 @@ def date_in_month_roundrobin(
         return True
     pw = max(1, int(price_window))
     if date_to_pos is None:
-        date_to_pos = {x: i for i, x in enumerate(global_dates)}
+        date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     pos = date_to_pos.get(str(d)[:10])
     if pos is None or pos < 1:
         return False
@@ -535,13 +532,11 @@ def date_in_month_roundrobin(
 
 
 def month_roundrobin_split_stats(
-    global_dates: list[str],
-    *,
-    price_window: int = 5,
+    global_dates: list[str], *, price_window: int = 5
 ) -> dict[str, Any]:
     """Counts for logging: raw month roles vs train-after-purge."""
     roles = build_month_roundrobin_roles(global_dates)
-    date_to_pos = {x: i for i, x in enumerate(global_dates)}
+    date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     raw = {"train": 0, "val": 0, "test": 0}
     for d in global_dates:
         raw[roles[d]] = raw.get(roles[d], 0) + 1
@@ -549,11 +544,16 @@ def month_roundrobin_split_stats(
         d
         for d in global_dates
         if date_in_month_roundrobin(
-            d, "train", global_dates, price_window=price_window, roles=roles, date_to_pos=date_to_pos
+            d,
+            "train",
+            global_dates,
+            price_window=price_window,
+            roles=roles,
+            date_to_pos=date_to_pos,
         )
     ]
-    val_n = sum(1 for d in global_dates if roles[d] == "val")
-    test_n = sum(1 for d in global_dates if roles[d] == "test")
+    val_n = sum((1 for d in global_dates if roles[d] == "val"))
+    test_n = sum((1 for d in global_dates if roles[d] == "test"))
     pw = max(1, int(price_window))
     return {
         "n_dates": len(global_dates),
@@ -586,7 +586,7 @@ def date_in_roles_with_purge(
         return True
     pw = max(1, int(price_window))
     if date_to_pos is None:
-        date_to_pos = {x: i for i, x in enumerate(global_dates)}
+        date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     pos = date_to_pos.get(key)
     if pos is None or pos < 1:
         return False
@@ -623,7 +623,7 @@ def build_day_rr_1022_roles(global_dates: list[str]) -> dict[str, str]:
 
 def _year_quarter_key(d: str) -> tuple[int, int]:
     s = str(d)[:10]
-    y, m = int(s[:4]), int(s[5:7])
+    (y, m) = (int(s[:4]), int(s[5:7]))
     return (y, (m - 1) // 3 + 1)
 
 
@@ -645,7 +645,7 @@ def build_quarter_rr_211_roles(global_dates: list[str]) -> dict[str, str]:
         if k not in seen:
             seen.add(k)
             ordered.append(k)
-    idx = {k: i for i, k in enumerate(ordered)}
+    idx = {k: i for (i, k) in enumerate(ordered)}
     roles: dict[str, str] = {}
     for d in global_dates:
         i = idx[q_of[d]] % 4
@@ -679,23 +679,16 @@ def build_quarter_rr_311_roles(global_dates: list[str], year0: int) -> dict[str,
             continue
         r = y - y0
         if (
-            (r == 0 and 1 <= m <= 9)
+            r == 0
+            and 1 <= m <= 9
             or (r == 1 and 4 <= m <= 12)
             or (r == 2 and 7 <= m <= 12)
             or (r == 3 and 1 <= m <= 3)
         ):
             roles[d] = "train"
-        elif (
-            (r == 0 and 10 <= m <= 12)
-            or (r == 2 and 1 <= m <= 3)
-            or (r == 3 and 4 <= m <= 6)
-        ):
+        elif r == 0 and 10 <= m <= 12 or (r == 2 and 1 <= m <= 3) or (r == 3 and 4 <= m <= 6):
             roles[d] = "val"
-        elif (
-            (r == 1 and 1 <= m <= 3)
-            or (r == 2 and 4 <= m <= 6)
-            or (r == 3 and 7 <= m <= 12)
-        ):
+        elif r == 1 and 1 <= m <= 3 or (r == 2 and 4 <= m <= 6) or (r == 3 and 7 <= m <= 12):
             roles[d] = "test"
     return roles
 
@@ -736,21 +729,23 @@ def role_split_stats(
     train_lookback_purge: bool = True,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    date_to_pos = {x: i for i, x in enumerate(global_dates)}
+    date_to_pos = {x: i for (i, x) in enumerate(global_dates)}
     raw = {"train": 0, "val": 0, "test": 0}
     for d in global_dates:
         raw[roles[d]] = raw.get(roles[d], 0) + 1
     train_kept = sum(
-        1
-        for d in global_dates
-        if date_in_roles_with_purge(
-            d,
-            "train",
-            global_dates,
-            roles,
-            price_window=price_window,
-            date_to_pos=date_to_pos,
-            train_lookback_purge=train_lookback_purge,
+        (
+            1
+            for d in global_dates
+            if date_in_roles_with_purge(
+                d,
+                "train",
+                global_dates,
+                roles,
+                price_window=price_window,
+                date_to_pos=date_to_pos,
+                train_lookback_purge=train_lookback_purge,
+            )
         )
     )
     out = {
@@ -825,9 +820,7 @@ def _split_mode_break_on_month(split_mode: str | None) -> bool:
 
 
 def _defer_months_for_split(
-    split_mode: str | None,
-    global_dates: list[str] | None,
-    start_date: str | None = None,
+    split_mode: str | None, global_dates: list[str] | None, start_date: str | None = None
 ) -> set[str] | None:
     """Months to append after flat packing so they don't remap later day_ids.
 
@@ -842,10 +835,7 @@ def _defer_months_for_split(
 
 
 def resolve_new_role_split_roles(
-    split_mode: str,
-    global_dates: list[str],
-    *,
-    start_date: str | None = None,
+    split_mode: str, global_dates: list[str], *, start_date: str | None = None
 ) -> dict[str, str] | None:
     """Roles for newly introduced split modes (not previously sweeped)."""
     sm = str(split_mode or "").strip().lower()
@@ -871,10 +861,6 @@ def resolve_split_year0(dates: list[str] | None, fallback: str | None = None) ->
     raise ValueError("resolve_split_year0: no dates/fallback")
 
 
-# ===== classes =====
-
-# --- config ---
-
 @dataclass(frozen=True)
 class DatasetProfile:
     key: str
@@ -882,6 +868,7 @@ class DatasetProfile:
     default_root: str
     vocab_path: str
     grid_num_stocks: int
+    num_score_news_types: int
     num_industry: int
     num_rule_trend: int
     price_window: int
@@ -906,7 +893,7 @@ def _filter_comp_date_map(mapping: dict | None, start: str, end: str) -> dict:
         if not isinstance(by_date, dict):
             out[comp] = by_date
             continue
-        out[comp] = {d: v for d, v in by_date.items() if start <= str(d) <= end}
+        out[comp] = {d: v for (d, v) in by_date.items() if start <= str(d) <= end}
     return out
 
 
@@ -927,17 +914,12 @@ def _build_prev_next_maps(stock_data: dict) -> tuple[dict, dict]:
             prev_map[dates_sorted[i]] = dates_sorted[i - 1]
         next_label_date[comp] = nxt_map
         prev_date[comp] = prev_map
-    return next_label_date, prev_date
+    return (next_label_date, prev_date)
 
 
 def isolate_dataset_to_split_range(ds) -> None:
-    """
-    [已弃用 / 默认不调用] 曾用于强制各 split 自给自足（lookback 不跨 split）。
-
-    与 main_csmd_50 一致的接续方式：保留全量日历，仅用 start/end 约束预测目标日；
-    val/test 段首日的价格窗与新闻可回看上一 split 末尾交易日。
-    """
-    start, end = str(ds.start_date), str(ds.end_date)
+    """Isolate dataset to split range."""
+    (start, end) = (str(ds.start_date), str(ds.end_date))
     ds.stock_data = _filter_comp_date_map(ds.stock_data, start, end)
     ds.label = _filter_comp_date_map(getattr(ds, "label", None), start, end)
     if hasattr(ds, "volume"):
@@ -954,18 +936,14 @@ def isolate_dataset_to_split_range(ds) -> None:
         ds.cluster_trend = _filter_comp_date_map(ds.cluster_trend, start, end)
     if hasattr(ds, "rule_trend"):
         ds.rule_trend = _filter_comp_date_map(ds.rule_trend, start, end)
-    ds.next_label_date, ds.prev_date = _build_prev_next_maps(ds.stock_data)
+    (ds.next_label_date, ds.prev_date) = _build_prev_next_maps(ds.stock_data)
     n_dates = len({d for by_d in ds.stock_data.values() for d in by_d})
     tag = type(ds).__name__.replace("_", "")
     print(
-        f"[{tag}] split-isolated mode={getattr(ds, 'mode', '?')} "
-        f"range=[{start},{end}] n_unique_dates={n_dates} "
-        f"(features/lookback stay inside this split)",
+        f"[{tag}] split-isolated mode={getattr(ds, 'mode', '?')} range=[{start},{end}] n_unique_dates={n_dates} (features/lookback stay inside this split)",
         flush=True,
     )
 
-
-# --- batch_buffer ---
 
 @dataclass
 class _Block:
@@ -999,6 +977,7 @@ class _Block:
             return int(x.size(0))
         return 0
 
+
 @dataclass
 class _Link:
     _fields: dict[str, Any] = field(default_factory=dict)
@@ -1020,9 +999,10 @@ class _Link:
     def __setitem__(self, key: str, value: Any) -> None:
         self._fields[key] = value
 
+
 @dataclass
 class BatchBuffer:
-    """单时间窗样本的内部缓冲区。"""
+    """Batchbuffer."""
 
     def __init__(self):
         self._blocks: dict[str, _Block] = {}
@@ -1075,26 +1055,22 @@ class BatchBuffer:
             return self._meta[name]
         raise AttributeError(name)
 
+
 @dataclass
 class WindowSample:
-    """一个时间窗口内的全市场样本。"""
+    """Windowsample."""
 
     range_dates: list[str] = field(default_factory=list)
-
-    # ---- 价格 ----
     price_seq: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 0, 0))
     price_company_id: torch.Tensor = field(default_factory=lambda: torch.zeros(0, dtype=torch.long))
     price_day_id: torch.Tensor = field(default_factory=lambda: torch.zeros(0, dtype=torch.long))
-    price_valid_mask: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool))
+    price_valid_mask: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool)
+    )
     price_target_dates: list[str] = field(default_factory=list)
     price_debug_line: list[str] = field(default_factory=list)
-
-    # 日历特征（CMIN-CN/US）
-    calendar_frac: torch.Tensor | None = None  # [N,T,1]
-    # 成交量收益率序列（与 price_seq 同窗、独立通道，不拼进 HLC）
-    price_vol_seq: torch.Tensor | None = None  # [N,T,1]
-
-    # ---- 新闻（逐条） ----
+    calendar_frac: torch.Tensor | None = None
+    price_vol_seq: torch.Tensor | None = None
     news_count: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
     news_company_id: torch.Tensor = field(default_factory=lambda: torch.zeros(0, dtype=torch.long))
     news_day_id: torch.Tensor = field(default_factory=lambda: torch.zeros(0, dtype=torch.long))
@@ -1102,40 +1078,47 @@ class WindowSample:
     news_types: list[str] = field(default_factory=list)
     news_ids: list = field(default_factory=list)
     news_texts: list[str] = field(default_factory=list)
-    news_vocab_ids: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 100, dtype=torch.long))
-    news_vocab_mask: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 100, dtype=torch.long))
+    news_vocab_ids: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 100, dtype=torch.long)
+    )
+    news_vocab_mask: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 100, dtype=torch.long)
+    )
     news_input_ids: torch.Tensor | None = None
     news_attention_mask: torch.Tensor | None = None
     news_token_type_ids: torch.Tensor | None = None
     news_emb: torch.Tensor | None = None
-
-    # ---- 新闻 padding（按 price 行对齐，K 槽） ----
+    news_impact_y: torch.Tensor | None = None
+    news_impact_y_valid: torch.Tensor | None = None
     news_pad_x: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 0, 1))
     news_pad_is_real: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 0))
-    news_pad_vocab_ids: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 0, 100, dtype=torch.long))
-    news_pad_vocab_mask: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 0, 100, dtype=torch.long))
+    news_pad_vocab_ids: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 0, 100, dtype=torch.long)
+    )
+    news_pad_vocab_mask: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 0, 100, dtype=torch.long)
+    )
     news_pad_input_ids: torch.Tensor | None = None
     news_pad_attention_mask: torch.Tensor | None = None
     news_pad_token_type_ids: torch.Tensor | None = None
     news_pad_emb: torch.Tensor | None = None
-
-    # ---- 类型 / 行业 / 趋势 ----
     news_type_feat: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 2))
     price_type_feat: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 3))
     industry_id_feat: torch.Tensor | None = None
     rule_trend_id_feat: torch.Tensor | None = None
-
-    # ---- 标签 ----
     label_bin: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
     label_org: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
-    label_strong_mask: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool))
-    label_valid_mask: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool))
-    # 成交量相对前一日变化（二分类 + 连续 + 有效掩码）
+    label_strong_mask: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool)
+    )
+    label_valid_mask: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool)
+    )
     label_vol_bin: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
     label_vol_org: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
-    label_vol_valid_mask: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool))
-
-    # ---- 虚拟类型表（window / news_type / price_type / industry / rule_trend） ----
+    label_vol_valid_mask: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(0, 1, dtype=torch.bool)
+    )
     virtual_window_table: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
     virtual_news_table: torch.Tensor = field(default_factory=lambda: torch.zeros(0, 1))
     virtual_news_type_table: torch.Tensor = field(default_factory=lambda: torch.zeros(12, 1))
@@ -1143,18 +1126,32 @@ class WindowSample:
     virtual_industry_table: torch.Tensor | None = None
     virtual_trend_table: torch.Tensor | None = None
     virtual_rule_trend_table: torch.Tensor | None = None
-
-    # ---- 索引映射（原 edge_index，row0=src row1=dst） ----
-    map_news_to_news_type: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
-    map_price_to_price_type: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
+    map_news_to_news_type: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
+    map_price_to_price_type: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
     map_price_to_industry: torch.Tensor | None = None
     map_price_to_rule_trend: torch.Tensor | None = None
-    map_price_to_virtual_window: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
-    map_news_to_virtual_window: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
-    map_news_to_virtual_news: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
-    map_news_type_to_virtual_news_type: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
-    map_price_type_to_virtual_price_type: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
-    map_virtual_price_type_to_price_type: torch.Tensor = field(default_factory=lambda: torch.zeros(2, 0, dtype=torch.long))
+    map_price_to_virtual_window: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
+    map_news_to_virtual_window: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
+    map_news_to_virtual_news: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
+    map_news_type_to_virtual_news_type: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
+    map_price_type_to_virtual_price_type: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
+    map_virtual_price_type_to_price_type: torch.Tensor = field(
+        default_factory=lambda: torch.zeros(2, 0, dtype=torch.long)
+    )
     map_industry_to_virtual_industry: torch.Tensor | None = None
     map_virtual_industry_to_industry: torch.Tensor | None = None
     map_price_to_virtual_trend: torch.Tensor | None = None
@@ -1163,12 +1160,12 @@ class WindowSample:
     map_virtual_rule_trend_to_rule_trend: torch.Tensor | None = None
 
     def for_model(self) -> BatchBuffer:
-        """转为 model.py / 训练循环使用的兼容视图。"""
+        """For model."""
         return window_sample_to_buffer(self)
 
-# --- CSMD (50 / 300 共用) ---
 
 class _CSMDBuilderDataset(torch.utils.data.Dataset):
+
     def _load_all_data(self, root):
         return load_csmd_all_data(
             root,
@@ -1182,27 +1179,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.get(idx)
 
-
-    """
-    将 CSMD-300 的多源数据封装成按时间窗口切分的异构图 Dataset。
-
-    任务定义（每个 price 节点，与 CMIN-CN/US 一致）：
-      - 预测目标日 d（price.date）
-      - 价格输入：不含 d，最近 price_window 天（默认 5），最后一根=prev(d)
-      - 标签：d 当日收益
-      - 新闻：prev(d) 发布的内容，连到目标日 d 的 price 节点
-      - rule_trend / price_type：对齐 prev(d)（trend CSV 当日形态，预测 d 时仅可知 prev）
-
-    节点类型（共 8 类）：
-      - price（特征 8 列：原 3 列(H/L/C，不含 Open) + 星期几 one-hot 5 维）
-      - news
-      - news_type
-      - price_type
-      - virtual_window（固定个数，如 10）
-      - virtual_news（个数与 price 相同、一一对应，news 按 (company_id, day_id) 连到对应 virtual_news）
-      - virtual_news_type（13 种：market 1 + industry 1 + individual 细分类 11）
-      - virtual_price_type（固定 10 种；映射来源见 price_type_source，默认仅用 rule）
-    """
+    "Market-window dataset construction."
 
     def __init__(
         self,
@@ -1226,19 +1203,22 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         split_dates: dict | None = None,
         split_mode: str = "contiguous",
         train_lookback_purge: bool = True,
+        news_impact_oracle_path: str | None = None,
     ):
         super().__init__()
         assert mode in {"train", "val", "test"}
         assert news_cluster_k in {10, 20, 30}
         assert price_type_source in {"rule", "kmeans", "dbscan", "mix"}
         _news_src = str(csmd_news_source or "raw").strip().lower()
-        assert _news_src in {"raw", "llm_extract"}
+        assert _news_src in {"llm_extract", "raw"}
         self.root = root
         self.mode = mode
         self.seg_length = seg_length
         self.price_window = price_window
         self.news_cluster_k = news_cluster_k
-        self.num_virtual_window = num_virtual_window if num_virtual_window is not None else seg_length
+        self.num_virtual_window = (
+            num_virtual_window if num_virtual_window is not None else seg_length
+        )
         self.news_padding_k = int(news_padding_k)
         self.use_cached_news_padding_emb = bool(use_cached_news_padding_emb)
         self.news_padding_emb_cache_path = news_padding_emb_cache_path
@@ -1250,15 +1230,25 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         self.split_dates = dict(split_dates) if split_dates else None
         self.split_mode = str(split_mode or "contiguous").strip().lower() or "contiguous"
         self.train_lookback_purge = bool(train_lookback_purge)
-
-        # 1) 读取全部数据
+        self.news_impact_oracle_path = str(news_impact_oracle_path or "").strip() or None
+        self._news_impact_cache = None
+        if self.news_impact_oracle_path:
+            try:
+                from tool.news_impact import load_oracle_cache
+            except ImportError:
+                from .news_impact import load_oracle_cache
+            self._news_impact_cache = load_oracle_cache(self.news_impact_oracle_path)
+            print(
+                f"[IMPACT-ORACLE] loaded {self.news_impact_oracle_path} mode={mode} (labels for pretrain; do not use as test features)",
+                flush=True,
+            )
         all_data = self._load_all_data(root)
-        self.stock_data = all_data["stock_data"]      # {stock_name: {date: [High, Low, Close]}}
+        self.stock_data = all_data["stock_data"]
         self.label = all_data["label"]
-        self.volume = all_data.get("volume", {})  # {stock: {date: abs volume}}
-        self.raw_line = all_data.get("raw_line", {})  # {company: {date: 原始行}} 用于 label 校验
-        self.news_texts = all_data["news_texts"]      # {company}{date}{news_id}: text
-        self.news_types = all_data["news_types"]      # {company}{date}{news_id}: type
+        self.volume = all_data.get("volume", {})
+        self.raw_line = all_data.get("raw_line", {})
+        self.news_texts = all_data["news_texts"]
+        self.news_types = all_data["news_types"]
         self.news_subtypes = all_data["news_subtypes"]
         self.cluster_trend = all_data["cluster_trend"]
         self.rule_trend = all_data["rule_trend"]
@@ -1272,11 +1262,8 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 if v.get("industry_cn")
             }
         )
-        self.industry_cn_to_id = {cn: i for i, cn in enumerate(_ind_cn_set)}
+        self.industry_cn_to_id = {cn: i for (i, cn) in enumerate(_ind_cn_set)}
         self.num_industries_dataset = max(len(self.industry_cn_to_id), 1)
-
-        # 为每个公司预先构建 日期 -> 下一/上一交易日（用于价格序列与 label 对齐）
-        # 预测目标日 d：价格序列用 prev_date 及前 price_window-1 天（最后一行=prev_date），label 取 d 的收益
         self.next_label_date = {}
         self.prev_date = {}
         for comp, day_dict in self.stock_data.items():
@@ -1293,18 +1280,14 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 prev_map[dates_sorted[i]] = dates_sorted[i - 1]
             self.next_label_date[comp] = nxt_map
             self.prev_date[comp] = prev_map
-
-        # FinBERT tokenizer（vocab 模式可跳过以加速）
-        _default_fb = _default_finbert_path(us=False)
+        _default_fb = "models/finbert-tone-chinese"
         finbert_model_path = str(finbert_model_path or "").strip() or _default_fb
         self._finbert_model_path = finbert_model_path
         self.news_tokenizer = None
         if not self.skip_finbert_tokenizer:
             self.news_tokenizer = AutoTokenizer.from_pretrained(finbert_model_path)
         self.news_max_len = 128
-
-        # vocab tokenizer（字符级 dict_*.pkl；jieba 词表为词级）
-        vocab_file = resolve_vocab_path(vocab_path, "dict_csmd.pkl")
+        vocab_file = resolve_vocab_path(vocab_path, "dict_csmd.pkl", "dict_cn.pkl")
         self.vocab = pkl.load(open(vocab_file, "rb"))
         self.vocab_pad_id = int(self.vocab.get("<pad>", 0))
         self.vocab_unk_id = int(self.vocab.get("<unk>", 0))
@@ -1313,11 +1296,9 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         _vm = (
             "word-level jieba"
             if self.vocab_use_jieba
-            else ("word-level" if self.vocab_word_level else "char-level")
+            else "word-level" if self.vocab_word_level else "char-level"
         )
         print(f"[CSMD_Dataset] vocab={vocab_file} mode={_vm} size={len(self.vocab)}")
-
-        # 离线缓存：优先 news 节点 FinBERT emb（主路径）；兼容旧 news_padding 目录
         self.news_padding_emb_cache = None
         self.news_padding_emb_cache_root = None
         self.news_node_emb_cache_root = None
@@ -1335,12 +1316,11 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 self.news_padding_emb_cache = torch.load(cache_path, map_location="cpu")
                 print(f"[CSMD_Dataset] loaded news_padding emb cache file: {cache_path}")
             else:
-                print(f"[CSMD_Dataset] cache not found: {cache_path} (run --mode precompute_news_emb)")
-
+                print(
+                    f"[CSMD_Dataset] cache not found: {cache_path} (run --mode precompute_news_emb)"
+                )
         self.companies = sorted(list(self.stock_data.keys()))
-        self.company2id = {c: i for i, c in enumerate(self.companies)}
-
-        # 2) 数据集时间划分（可由 split_dates / CLI --train_start 等覆盖）
+        self.company2id = {c: i for (i, c) in enumerate(self.companies)}
         data_period = {
             "CSMD-300": {
                 "train_start": "2021-01-01",
@@ -1353,7 +1333,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         }
         full_period = dict(data_period["CSMD-300"])
         if self.split_dates:
-            full_period.update({k: str(v) for k, v in self.split_dates.items() if v})
+            full_period.update({k: str(v) for (k, v) in self.split_dates.items() if v})
         if mode == "train":
             self.start_date = full_period["train_start"]
             self.end_date = full_period["train_end"]
@@ -1363,61 +1343,46 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         else:
             self.start_date = full_period["test_start"]
             self.end_date = full_period["test_end"]
-
-        # 与 main_csmd_50 一致：保留全量日历，仅用 start/end 约束预测目标日；
-        # val/test 段首的价格窗/新闻可回看上一 split 末尾（不调用 isolate_dataset_to_split_range）
         if self.split_mode == "stagger_4y":
             print(
-                f"[CSMD_Dataset] split_mode=stagger_4y mode={mode} "
-                f"(year0 from calendar; cross-split lookback on full calendar)",
+                f"[CSMD_Dataset] split_mode=stagger_4y mode={mode} (year0 from calendar; cross-split lookback on full calendar)",
                 flush=True,
             )
         elif self.split_mode == "seasonal_h1q3q4":
             _months = sorted(SEASONAL_H1Q3Q4_MONTHS.get(mode, set()))
             print(
-                f"[CSMD_Dataset] split_mode=seasonal_h1q3q4 mode={mode} "
-                f"months={_months} (cross-split lookback on full calendar)",
+                f"[CSMD_Dataset] split_mode=seasonal_h1q3q4 mode={mode} months={_months} (cross-split lookback on full calendar)",
                 flush=True,
             )
         elif self.split_mode == "week_roundrobin":
             print(
-                f"[CSMD_Dataset] split_mode=week_roundrobin mode={mode} "
-                f"ISO-week 6:2:2; train lookback-purge vs val/test "
-                f"(price_window={self.price_window})",
+                f"[CSMD_Dataset] split_mode=week_roundrobin mode={mode} ISO-week 6:2:2; train lookback-purge vs val/test (price_window={self.price_window})",
                 flush=True,
             )
         elif self.split_mode == "month_roundrobin":
             print(
-                f"[CSMD_Dataset] split_mode=month_roundrobin mode={mode} "
-                f"calendar-month 4:1:1; train lookback-purge vs val/test "
-                f"(price_window={self.price_window})",
+                f"[CSMD_Dataset] split_mode=month_roundrobin mode={mode} calendar-month 4:1:1; train lookback-purge vs val/test (price_window={self.price_window})",
                 flush=True,
             )
         elif self.split_mode == "timefrac_622":
             print(
-                f"[CSMD_Dataset] split_mode=timefrac_622 mode={mode} "
-                f"chronological 60%/20%/20% by trading days",
+                f"[CSMD_Dataset] split_mode=timefrac_622 mode={mode} chronological 60%/20%/20% by trading days",
                 flush=True,
             )
         elif self.split_mode in NEW_ROLE_SPLIT_MODES:
             print(
-                f"[CSMD_Dataset] split_mode={self.split_mode} mode={mode} "
-                f"(NEW role-split + train lookback purge, pw={self.price_window})",
+                f"[CSMD_Dataset] split_mode={self.split_mode} mode={mode} (NEW role-split + train lookback purge, pw={self.price_window})",
                 flush=True,
             )
         else:
             print(
-                f"[CSMD_Dataset] cross-split lookback mode={mode} "
-                f"predict_range=[{self.start_date},{self.end_date}]",
+                f"[CSMD_Dataset] cross-split lookback mode={mode} predict_range=[{self.start_date},{self.end_date}]",
                 flush=True,
             )
-
-        # 3) 构建全局日期轴，并在当前 mode 的时间段内，生成可用日期列表（再按 seg_length 分段）
         self.global_dates = self._build_global_trading_dates()
         if self.split_mode == "stagger_4y":
             print(
-                f"[CSMD_Dataset] stagger_4y year0={resolve_split_year0(self.global_dates, self.start_date)} "
-                f"n_valid_dates pending filter",
+                f"[CSMD_Dataset] stagger_4y year0={resolve_split_year0(self.global_dates, self.start_date)} n_valid_dates pending filter",
                 flush=True,
             )
         if self.split_mode == "week_roundrobin":
@@ -1425,9 +1390,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 self.global_dates, price_window=int(self.price_window)
             )
             print(
-                f"[CSMD_Dataset] week_roundrobin stats: weeks={_st['n_iso_weeks']} "
-                f"raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} "
-                f"train_purged={_st['train_purged']} (lookback embargo)",
+                f"[CSMD_Dataset] week_roundrobin stats: weeks={_st['n_iso_weeks']} raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} train_purged={_st['train_purged']} (lookback embargo)",
                 flush=True,
             )
         if self.split_mode == "month_roundrobin":
@@ -1435,16 +1398,13 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 self.global_dates, price_window=int(self.price_window)
             )
             print(
-                f"[CSMD_Dataset] month_roundrobin stats: months={_st['n_months']} "
-                f"raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} "
-                f"train_purged={_st['train_purged']} (lookback embargo)",
+                f"[CSMD_Dataset] month_roundrobin stats: months={_st['n_months']} raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} train_purged={_st['train_purged']} (lookback embargo)",
                 flush=True,
             )
         if self.split_mode == "timefrac_622":
             _st = timefrac_622_split_stats(self.global_dates)
             print(
-                f"[CSMD_Dataset] timefrac_622 stats: counts={_st['counts']} "
-                f"train={_st['train_range']} val={_st['val_range']} test={_st['test_range']}",
+                f"[CSMD_Dataset] timefrac_622 stats: counts={_st['counts']} train={_st['train_range']} val={_st['val_range']} test={_st['test_range']}",
                 flush=True,
             )
         if self.split_mode in NEW_ROLE_SPLIT_MODES:
@@ -1459,41 +1419,34 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 train_lookback_purge=_purge,
             )
             print(
-                f"[CSMD_Dataset] {self.split_mode} stats: raw={_st['raw_role_days']} "
-                f"train_kept={_st['train_after_purge']} train_purged={_st['train_purged']} "
-                f"lookback_purge={_purge}",
+                f"[CSMD_Dataset] {self.split_mode} stats: raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} train_purged={_st['train_purged']} lookback_purge={_purge}",
                 flush=True,
             )
         self.valid_dates = self._build_valid_dates_for_mode()
         self._rebuild_seg_windows()
         if self.split_mode == "stagger_4y":
             print(
-                f"[CSMD_Dataset] stagger_4y mode={mode} n_valid_dates={len(self.valid_dates)} "
-                f"n_windows={len(self._seg_windows)}",
+                f"[CSMD_Dataset] stagger_4y mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode == "week_roundrobin":
             print(
-                f"[CSMD_Dataset] week_roundrobin mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CSMD_Dataset] week_roundrobin mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode == "month_roundrobin":
             print(
-                f"[CSMD_Dataset] month_roundrobin mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CSMD_Dataset] month_roundrobin mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode == "timefrac_622":
             print(
-                f"[CSMD_Dataset] timefrac_622 mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CSMD_Dataset] timefrac_622 mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode in NEW_ROLE_SPLIT_MODES:
             print(
-                f"[CSMD_Dataset] {self.split_mode} mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CSMD_Dataset] {self.split_mode} mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
 
@@ -1512,7 +1465,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             return [d for d in self.global_dates if date_in_seasonal_h1q3q4(d, self.mode)]
         if sm == "week_roundrobin":
             roles = build_week_roundrobin_roles(self.global_dates)
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
             pw = max(1, int(getattr(self, "price_window", 5) or 5))
             return [
                 d
@@ -1528,7 +1481,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             ]
         if sm == "month_roundrobin":
             roles = build_month_roundrobin_roles(self.global_dates)
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
             pw = max(1, int(getattr(self, "price_window", 5) or 5))
             return [
                 d
@@ -1543,8 +1496,8 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 )
             ]
         if sm == "timefrac_622":
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
-            te, ve = timefrac_622_cut_indices(len(self.global_dates))
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
+            (te, ve) = timefrac_622_cut_indices(len(self.global_dates))
             return [
                 d
                 for d in self.global_dates
@@ -1561,7 +1514,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             roles = resolve_new_role_split_roles(
                 sm, self.global_dates, start_date=getattr(self, "start_date", None)
             )
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
             pw = max(1, int(getattr(self, "price_window", 5) or 5))
             do_purge = bool(getattr(self, "train_lookback_purge", True))
             return [
@@ -1588,9 +1541,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             keep_tail=True,
             break_on_month=_split_mode_break_on_month(getattr(self, "split_mode", None)),
             defer_months=_defer_months_for_split(
-                getattr(self, "split_mode", None),
-                gdates,
-                getattr(self, "start_date", None),
+                getattr(self, "split_mode", None), gdates, getattr(self, "start_date", None)
             ),
         )
 
@@ -1609,7 +1560,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         return list(wins[idx])
 
     def _ensure_price_feature_dim(self, data):
-        """兼容旧缓存：若 price.x 为 9 维(OHLC+onehot5)，转换成 8 维(HLC+onehot5)。"""
+        """Ensure price feature dim."""
         if not hasattr(data, "price") or not hasattr(data["price"], "x"):
             return
         px = data["price"].x
@@ -1619,13 +1570,12 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         if fdim == 8:
             return
         if fdim == 9:
-            # 旧格式: [Open, High, Low, Close, wd0..wd4] -> 新格式: [High, Low, Close, wd0..wd4]
             data["price"].x = torch.cat([px[..., 1:4], px[..., 4:9]], dim=-1)
             return
         raise RuntimeError(f"Unsupported price feature dim in cache: {fdim} (expect 8 or legacy 9)")
 
     def _ensure_labels_target_day(self, data, range_dates):
-        """旧缓存 label 对齐目标日 d：样本标签为 d 当日收益；并补成交量变化标签。"""
+        """Ensure labels target day."""
         if not hasattr(data, "label") or data["price"].x.size(0) == 0:
             return
         label_bin = []
@@ -1646,13 +1596,10 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 y = 0.0
             label_org.append(y)
             label_bin.append(1.0 if y > 0.0 else 0.0)
-            label_strong.append(1.0 if (y > 0.0055 or y < -0.005) else 0.0)
+            label_strong.append(1.0 if y > 0.0055 or y < -0.005 else 0.0)
             prev_d = self.prev_date.get(comp_name, {}).get(target_date)
-            vb, vo, vv = _vol_change_from_map(
-                getattr(self, "volume", None) or {},
-                comp_name,
-                target_date,
-                prev_d,
+            (vb, vo, vv) = _vol_change_from_map(
+                getattr(self, "volume", None) or {}, comp_name, target_date, prev_d
             )
             vol_bin.append(vb)
             vol_org.append(vo)
@@ -1665,12 +1612,12 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         data["label"].vol_valid_mask = torch.tensor(vol_valid, dtype=torch.bool).view(-1, 1)
 
     def _resolve_trend_date(self, comp_name: str, target_date: str) -> str:
-        """趋势/price_type 用 prev(target_date)，与 trend CSV 在预测 d 时可知的形态一致。"""
+        """Resolve trend date."""
         prev_d = self.prev_date.get(comp_name, {}).get(target_date)
         return prev_d if prev_d else target_date
 
     def _ensure_rule_trend_feature_date(self, data, range_dates):
-        """旧缓存 rule_trend_type / price_type 对齐 prev(target_date)。"""
+        """Ensure rule trend feature date."""
         if not range_dates or data["price"].x.size(0) == 0:
             return
         if "rule_trend_type" in data.node_types and data["rule_trend_type"].x.size(0) > 0:
@@ -1693,39 +1640,67 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 target_date = range_dates[day_i]
                 trend_date = self._resolve_trend_date(comp_name, target_date)
                 ct = self.cluster_trend.get(comp_name, {}).get(trend_date, {})
-                kmeans_id = int(ct["kmeans_cluster"]) if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None else -1
-                dbscan_id = int(ct["dbscan_cluster"]) if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None else -1
+                kmeans_id = (
+                    int(ct["kmeans_cluster"])
+                    if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None
+                    else -1
+                )
+                dbscan_id = (
+                    int(ct["dbscan_cluster"])
+                    if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None
+                    else -1
+                )
                 rt_cn = self.rule_trend.get(comp_name, {}).get(trend_date, None)
                 rule_id = float(rule_trend_cn_to_id(rt_cn))
                 pt_feats.append(torch.tensor([kmeans_id, dbscan_id, rule_id], dtype=torch.float32))
             data["price_type"].x = torch.stack(pt_feats, dim=0)
 
+    def _news_impact_targets(
+        self, news_company_ids: list, news_dates: list
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Normalized oracle [N,3] + valid [N] from publish dates (pretrain labels)."""
+        n = len(news_company_ids)
+        y = torch.zeros((n, 3), dtype=torch.float32)
+        valid = torch.zeros((n,), dtype=torch.bool)
+        cache = getattr(self, "_news_impact_cache", None)
+        if cache is None or n <= 0:
+            return (y, valid)
+        try:
+            from tool.news_impact import lookup_oracle
+        except ImportError:
+            from .news_impact import lookup_oracle
+        for i, (ci, pub) in enumerate(zip(news_company_ids, news_dates)):
+            comp = self.companies[int(ci)] if 0 <= int(ci) < len(self.companies) else None
+            if comp is None:
+                continue
+            trip = lookup_oracle(cache, comp, str(pub), normalized=True)
+            if trip is None:
+                continue
+            y[i, 0] = float(trip[0])
+            y[i, 1] = float(trip[1])
+            y[i, 2] = float(trip[2])
+            valid[i] = True
+        return (y, valid)
+
     def get(self, idx):
-        """
-        返回一个 HeteroData，表示一个时间窗口内全市场的异构图。
-        """
+        """Get."""
         range_dates = self._range_dates_for_idx(idx)
         data = BatchBuffer()
-
-        # ---------- price 节点：固定为 [num_seg * num_comp]（缺失补零，用 valid_mask 标记） ----------
-        # 顺序固定为 day-major：idx = day_i * num_comp + comp_idx
-        num_comp = len(self.companies)  # 目标通常为 300
-        num_seg = len(range_dates)      # 1 ~ seg_length（尾段可不足）
+        num_comp = len(self.companies)
+        num_seg = len(range_dates)
         n_price_fixed = num_seg * num_comp
         price_x = torch.zeros((n_price_fixed, self.price_window, 8), dtype=torch.float32)
         vol_seq = torch.zeros((n_price_fixed, self.price_window, 1), dtype=torch.float32)
         price_comp_ids = torch.zeros((n_price_fixed,), dtype=torch.long)
         price_day_ids = torch.zeros((n_price_fixed,), dtype=torch.long)
         price_valid_mask = torch.zeros((n_price_fixed, 1), dtype=torch.bool)
-
         comp_date_to_pos = {}
         comp_dates_sorted_map = {}
         for comp in self.companies:
             day_dict = self.stock_data.get(comp, {})
             cds = sorted(day_dict.keys()) if day_dict else []
             comp_dates_sorted_map[comp] = cds
-            comp_date_to_pos[comp] = {d: i for i, d in enumerate(cds)}
-
+            comp_date_to_pos[comp] = {d: i for (i, d) in enumerate(cds)}
         for day_i, d in enumerate(range_dates):
             for comp_idx, comp in enumerate(self.companies):
                 p_idx = day_i * num_comp + comp_idx
@@ -1734,19 +1709,18 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 day_dict = self.stock_data.get(comp, {})
                 date_to_pos = comp_date_to_pos.get(comp, {})
                 comp_dates_sorted = comp_dates_sorted_map.get(comp, [])
-                if (not day_dict) or (d not in date_to_pos):
+                if not day_dict or d not in date_to_pos:
                     continue
                 pos = date_to_pos[d]
-                # d 是预测目标日，价格序列用 d 的前一天及之前 price_window-1 天，最后一行是 prev_date
                 if pos < self.price_window:
                     continue
-                last_k_dates = comp_dates_sorted[pos - self.price_window: pos]
+                last_k_dates = comp_dates_sorted[pos - self.price_window : pos]
                 feat_seq_8 = []
                 for dd in last_k_dates:
                     raw = day_dict[dd]
                     if hasattr(raw, "tolist"):
                         raw = raw.tolist()
-                    raw_3 = list(raw)[:3]  # 已是 H/L/C 三列
+                    raw_3 = list(raw)[:3]
                     try:
                         wd = datetime.strptime(str(dd), "%Y-%m-%d").weekday()
                     except Exception:
@@ -1776,27 +1750,20 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     dtype=torch.float32,
                 )
                 price_valid_mask[p_idx] = True
-
         data["price"].x = price_x
         data["price"].vol_seq = vol_seq
         data["price"].company_id = price_comp_ids
         data["price"].day_id = price_day_ids
         data["price"].valid_mask = price_valid_mask
-        # 每个 price 节点对应的交易日（该样本测试的是哪天的 date）
         data["price"].date = [
-            range_dates[int(price_day_ids[p_idx].item())]
-            for p_idx in range(n_price_fixed)
+            range_dates[int(price_day_ids[p_idx].item())] for p_idx in range(n_price_fixed)
         ]
-
-        # ---------- news 节点 ----------
-        # 防泄漏：不能用预测日 d 的新闻预测当日收益，改用预测日的前一交易日 prev_date 的新闻
         news_company_ids = []
         news_dates = []
         news_types_str = []
         news_text_list = []
         news_ids = []
-        news_target_day_ids = []  # 该新闻用于预测哪个 day_id 对应的交易日
-
+        news_target_day_ids = []
         for comp_idx, comp in enumerate(self.companies):
             if comp not in self.news_texts:
                 continue
@@ -1818,11 +1785,9 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     news_ids.append(news_id)
                     ttype = comp_type_by_date.get(prev_date, {}).get(news_id, "")
                     news_types_str.append(ttype)
-
         if news_text_list:
             Nn = len(news_text_list)
             if self.skip_finbert_tokenizer:
-                # vocab 模式：不跑 FinBERT tokenizer，仅占位（模型只用 vocab_*）
                 data["news"].input_ids = torch.zeros((Nn, self.news_max_len), dtype=torch.long)
                 data["news"].attention_mask = torch.zeros((Nn, self.news_max_len), dtype=torch.long)
             else:
@@ -1844,8 +1809,6 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             data["news"].type = news_types_str
             data["news"].news_id = news_ids
             data["news"].text = news_text_list
-
-            # vocab token（dict_us 词级；dict_cn 字符级）
             MAX_SEQ_LEN = 100
             vocab_input_ids = []
             vocab_attention = []
@@ -1858,12 +1821,11 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     word_level=self.vocab_word_level,
                     use_jieba=getattr(self, "vocab_use_jieba", False),
                 )
-                idx, attn = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
+                (idx, attn) = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
                 vocab_input_ids.append(idx)
                 vocab_attention.append(attn)
             data["news"].vocab_input_ids = torch.tensor(vocab_input_ids, dtype=torch.long)
             data["news"].vocab_attention_mask = torch.tensor(vocab_attention, dtype=torch.long)
-            # 离线 FinBERT：主路径 news.emb [N,768]
             if getattr(self, "news_node_emb_cache_root", None):
                 data["news"].emb = load_news_node_emb_rows(
                     self.news_node_emb_cache_root,
@@ -1872,6 +1834,9 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     news_dates,
                     news_ids,
                 )
+            (data["news"].impact_y, data["news"].impact_y_valid) = self._news_impact_targets(
+                news_company_ids, news_dates
+            )
         else:
             data["news"].x = torch.zeros((0, 1), dtype=torch.float32)
             data["news"].company_id = torch.zeros((0,), dtype=torch.long)
@@ -1884,23 +1849,17 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             data["news"].vocab_attention_mask = torch.zeros((0, 100), dtype=torch.long)
             if getattr(self, "news_node_emb_cache_root", None):
                 data["news"].emb = torch.zeros((0, 768), dtype=torch.float32)
-
-        # ---------- news_padding：按天取前 K 条新闻（不连 virtual_news） ----------
-        # 节点数 = N_price；每个节点 x 形状 (K, 1)，整体 x [N_price, K, 1]，与 price 行一一对齐。
-        # - FinBERT：input_ids / attention_mask 形状 [N_price, K, L]
-        # - 聚合在 model.py 中完成
+            data["news"].impact_y = torch.zeros((0, 3), dtype=torch.float32)
+            data["news"].impact_y_valid = torch.zeros((0,), dtype=torch.bool)
         MAX_NEWS_PER_DAY = int(self.news_padding_k)
         MAX_SEQ_LEN = 100
         n_price = int(data["price"].x.size(0))
         data["news_padding"].x = torch.zeros((n_price, MAX_NEWS_PER_DAY, 1), dtype=torch.float32)
-
-        # 用 (company_id, day_id) 将 news 文本归到对应 price（从每个 day 取前 K 条）
         key2price_idx = {}
         for p_idx in range(n_price):
             c = int(data["price"].company_id[p_idx].item())
             d = int(data["price"].day_id[p_idx].item())
-            key2price_idx[(c, d)] = p_idx
-
+            key2price_idx[c, d] = p_idx
         texts_by_price = [[] for _ in range(n_price)]
         for n_idx, txt in enumerate(news_text_list):
             c = int(news_company_ids[n_idx])
@@ -1910,7 +1869,6 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 continue
             if len(texts_by_price[p_idx]) < MAX_NEWS_PER_DAY:
                 texts_by_price[p_idx].append(txt)
-
         docs_mat: list[list[str]] = []
         is_real_mat: list[list[float]] = []
         for p_idx in range(n_price):
@@ -1926,15 +1884,12 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     row_real.append(0.0)
             docs_mat.append(row_docs)
             is_real_mat.append(row_real)
-
         if n_price > 0:
             data["news_padding"].is_real = torch.tensor(is_real_mat, dtype=torch.float32)
         else:
             data["news_padding"].is_real = torch.zeros((0, MAX_NEWS_PER_DAY), dtype=torch.float32)
-
         if n_price > 0:
             flat_docs = [d for row in docs_mat for d in row]
-            # (1) FinBERT token（vocab 模式跳过）
             if self.skip_finbert_tokenizer:
                 data["news_padding"].input_ids = torch.zeros(
                     (n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN), dtype=torch.long
@@ -1964,16 +1919,17 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                             token_type_ids_list.append(enc["token_type_ids"])
                         else:
                             use_token_type_ids = False
-
                 _ids = torch.cat(input_ids_list, dim=0)
                 _mask = torch.cat(attention_mask_list, dim=0)
                 data["news_padding"].input_ids = _ids.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-                data["news_padding"].attention_mask = _mask.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
+                data["news_padding"].attention_mask = _mask.view(
+                    n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+                )
                 if use_token_type_ids and len(token_type_ids_list) > 0:
                     _tt = torch.cat(token_type_ids_list, dim=0)
-                    data["news_padding"].token_type_ids = _tt.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-
-            # (2) vocab token（dict_us 词级；dict_cn/CSMD 字符级）
+                    data["news_padding"].token_type_ids = _tt.view(
+                        n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+                    )
             vocab_input_ids = []
             vocab_attention = []
             for doc in flat_docs:
@@ -1985,29 +1941,30 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     word_level=getattr(self, "vocab_word_level", False),
                     use_jieba=getattr(self, "vocab_use_jieba", False),
                 )
-                idx, attn = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
+                (idx, attn) = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
                 vocab_input_ids.append(idx)
                 vocab_attention.append(attn)
-
             _vocab_ids = torch.tensor(vocab_input_ids, dtype=torch.long)
             _vocab_attn = torch.tensor(vocab_attention, dtype=torch.long)
-            data["news_padding"].vocab_input_ids = _vocab_ids.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-            data["news_padding"].vocab_attention_mask = _vocab_attn.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-
-            # (3) 可选：离线缓存 embedding（FinBERT pooler_output）-> HeteroData.news_padding.emb [N,K,768]
-            # 主路径已挂 news.emb（by_news_id 全量缓存）时跳过 padding emb，避免重复 IO / 形状问题
+            data["news_padding"].vocab_input_ids = _vocab_ids.view(
+                n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+            )
+            data["news_padding"].vocab_attention_mask = _vocab_attn.view(
+                n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+            )
             _skip_pad_emb = (
                 getattr(self, "news_node_emb_cache_root", None)
                 and hasattr(data["news"], "emb")
                 and isinstance(getattr(data["news"], "emb", None), torch.Tensor)
-                and int(data["news"].emb.numel()) > 0
+                and (int(data["news"].emb.numel()) > 0)
             )
-            if self.use_cached_news_padding_emb and not _skip_pad_emb:
+            if self.use_cached_news_padding_emb and (not _skip_pad_emb):
                 emb_dim = 768
-                # 优先：目录结构缓存 out_root/<company>/<date>.pt
-                if isinstance(self.news_padding_emb_cache_root, str) and self.news_padding_emb_cache_root:
+                if (
+                    isinstance(self.news_padding_emb_cache_root, str)
+                    and self.news_padding_emb_cache_root
+                ):
                     emb_out = torch.zeros((n_price, MAX_NEWS_PER_DAY, emb_dim), dtype=torch.float32)
-                    # 缺缓存文件时保留文本侧 is_real，避免整图被误判为全 padding
                     is_real_out = data["news_padding"].is_real.clone()
                     for p_idx in range(n_price):
                         comp_idx = int(data["price"].company_id[p_idx].item())
@@ -2016,9 +1973,15 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                         cur_date = range_dates[day_id]
                         comp_dates = comp_dates_sorted_map.get(comp_name, [])
                         date_to_pos = comp_date_to_pos.get(comp_name, {})
-                        prev_date = comp_dates[date_to_pos[cur_date] - 1] if cur_date in date_to_pos and date_to_pos[cur_date] >= 1 else None
+                        prev_date = (
+                            comp_dates[date_to_pos[cur_date] - 1]
+                            if cur_date in date_to_pos and date_to_pos[cur_date] >= 1
+                            else None
+                        )
                         date_str = prev_date if prev_date else cur_date
-                        fpath = os.path.join(self.news_padding_emb_cache_root, comp_name, f"{date_str}.pt")
+                        fpath = os.path.join(
+                            self.news_padding_emb_cache_root, comp_name, f"{date_str}.pt"
+                        )
                         if not os.path.exists(fpath):
                             continue
                         obj = torch.load(fpath, map_location="cpu")
@@ -2028,31 +1991,32 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                         n_day = len(texts_by_price[p_idx])
                         if not isinstance(emb, torch.Tensor) or emb.dim() != 2:
                             continue
-                        if layout in ("packed", "by_news_id") or int(emb.size(0)) != MAX_NEWS_PER_DAY:
-                            # 变长 [N_file,768]：写入前 n_take 个槽（与当天取前 K 条顺序一致）
+                        if (
+                            layout in ("packed", "by_news_id")
+                            or int(emb.size(0)) != MAX_NEWS_PER_DAY
+                        ):
                             n_f = int(emb.size(0))
                             n_take = min(n_f, n_day, MAX_NEWS_PER_DAY)
                             if n_take > 0:
                                 emb_out[p_idx, :n_take] = emb[:n_take].to(dtype=torch.float32)
                         else:
-                            # 旧版固定 k 行 [K,768] + is_real
                             if emb.numel() > 0:
                                 emb_out[p_idx] = emb[:MAX_NEWS_PER_DAY].to(dtype=torch.float32)
                             if isinstance(ir, torch.Tensor) and ir.numel() > 0:
                                 is_real_out[p_idx] = ir[:MAX_NEWS_PER_DAY].to(dtype=torch.float32)
                     data["news_padding"].emb = emb_out
                     data["news_padding"].is_real = is_real_out
-
-                # 兼容：旧版单文件缓存（不推荐）
                 elif self.news_padding_emb_cache is not None:
                     cache = self.news_padding_emb_cache
                     idx_map = cache.get("index", {})
-                    emb_cache = cache.get("emb", None)   # [N_pairs, K, 768]
-                    is_real_cache = cache.get("is_real", None)  # [N_pairs, K]
+                    emb_cache = cache.get("emb", None)
+                    is_real_cache = cache.get("is_real", None)
                     if isinstance(emb_cache, torch.Tensor) and emb_cache.numel() > 0:
                         Kc = int(cache.get("k", MAX_NEWS_PER_DAY))
                         if Kc == MAX_NEWS_PER_DAY:
-                            emb_out = torch.zeros((n_price, MAX_NEWS_PER_DAY, emb_cache.size(-1)), dtype=torch.float32)
+                            emb_out = torch.zeros(
+                                (n_price, MAX_NEWS_PER_DAY, emb_cache.size(-1)), dtype=torch.float32
+                            )
                             is_real_out = data["news_padding"].is_real.clone()
                             for p_idx in range(n_price):
                                 comp_idx = int(data["price"].company_id[p_idx].item())
@@ -2061,26 +2025,32 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                                 cur_date = range_dates[day_id]
                                 comp_dates = comp_dates_sorted_map.get(comp_name, [])
                                 date_to_pos = comp_date_to_pos.get(comp_name, {})
-                                prev_date = comp_dates[date_to_pos[cur_date] - 1] if cur_date in date_to_pos and date_to_pos[cur_date] >= 1 else cur_date
+                                prev_date = (
+                                    comp_dates[date_to_pos[cur_date] - 1]
+                                    if cur_date in date_to_pos and date_to_pos[cur_date] >= 1
+                                    else cur_date
+                                )
                                 date_str = prev_date
                                 row = idx_map.get((comp_name, date_str), None)
                                 if row is None:
                                     continue
                                 emb_out[p_idx] = emb_cache[row]
-                                if isinstance(is_real_cache, torch.Tensor) and is_real_cache.numel() > 0:
+                                if (
+                                    isinstance(is_real_cache, torch.Tensor)
+                                    and is_real_cache.numel() > 0
+                                ):
                                     is_real_out[p_idx] = is_real_cache[row]
                                 else:
-                                    is_real_out[p_idx] = (emb_cache[row].abs().sum(dim=-1) > 0).float()
+                                    is_real_out[p_idx] = (
+                                        emb_cache[row].abs().sum(dim=-1) > 0
+                                    ).float()
                             data["news_padding"].emb = emb_out
                             data["news_padding"].is_real = is_real_out
-
-                # 已开启「写 emb」但未命中任何缓存实现（路径无效等）：仍挂上 emb 张量，便于在图中可见且与模型接口一致
                 if not hasattr(data["news_padding"], "emb"):
                     data["news_padding"].emb = torch.zeros(
                         (n_price, MAX_NEWS_PER_DAY, emb_dim), dtype=torch.float32
                     )
 
-        # ---------- news_type 节点（与 news 一一对应）+ news -> news_type 边 ----------
         def _encode_base_news_type(t: str) -> int:
             if t is None:
                 return 2
@@ -2099,40 +2069,35 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 date_str = data["news"].date[n_idx]
                 n_type_str = data["news"].type[n_idx]
                 n_id = str(data["news"].news_id[n_idx])
-
-                base_tid = _encode_base_news_type(n_type_str)  # 0:市场 1:行业 2:个股
+                base_tid = _encode_base_news_type(n_type_str)
                 subtype_id = -1
                 if base_tid == 2:
-                    subtype_id = 11  # 默认：其他
-                    if comp_name in self.news_subtypes and date_str in self.news_subtypes[comp_name]:
+                    subtype_id = 11
+                    if (
+                        comp_name in self.news_subtypes
+                        and date_str in self.news_subtypes[comp_name]
+                    ):
                         day_sub = self.news_subtypes[comp_name][date_str]
                         if n_id in day_sub:
                             sid = int(day_sub[n_id])
                             if 1 <= sid <= 11:
                                 subtype_id = sid
-
                 news_type_feats.append(torch.tensor([base_tid, subtype_id], dtype=torch.float32))
-                news_to_type_edges.append([n_idx, n_idx])  # 一一对应
-
+                news_to_type_edges.append([n_idx, n_idx])
         if news_type_feats:
-            data["news_type"].x = torch.stack(news_type_feats, dim=0)  # [N_news, 2]
+            data["news_type"].x = torch.stack(news_type_feats, dim=0)
         else:
             data["news_type"].x = torch.zeros((0, 2), dtype=torch.float32)
-
         if news_to_type_edges:
             data["news", "to", "news_type"].edge_index = torch.tensor(
                 news_to_type_edges, dtype=torch.long
             ).t()
         else:
             data["news", "to", "news_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
-        # ---------- price_type 节点（与 price 一一对应）+ price -> price_type 边 ----------
         price_type_feats = []
         price_to_type_edges = []
-
         if not hasattr(self, "_rule_trend_map"):
             self._rule_trend_map = {}
-
         if data["price"].x.size(0) > 0 and len(range_dates) > 0:
             for p_idx in range(data["price"].x.size(0)):
                 comp_idx = int(data["price"].company_id[p_idx].item())
@@ -2140,29 +2105,32 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 comp_name = self.companies[comp_idx]
                 target_date = range_dates[day_i]
                 trend_date = self._resolve_trend_date(comp_name, target_date)
-
                 ct = self.cluster_trend.get(comp_name, {}).get(trend_date, {})
-                kmeans_id = int(ct["kmeans_cluster"]) if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None else -1
-                dbscan_id = int(ct["dbscan_cluster"]) if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None else -1
+                kmeans_id = (
+                    int(ct["kmeans_cluster"])
+                    if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None
+                    else -1
+                )
+                dbscan_id = (
+                    int(ct["dbscan_cluster"])
+                    if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None
+                    else -1
+                )
                 rt = self.rule_trend.get(comp_name, {}).get(trend_date, None)
                 rule_id = float(rule_trend_cn_to_id(rt))
                 feat = torch.tensor([kmeans_id, dbscan_id, rule_id], dtype=torch.float32)
                 price_type_feats.append(feat)
                 price_to_type_edges.append([p_idx, p_idx])
-
         if price_type_feats:
             data["price_type"].x = torch.stack(price_type_feats, dim=0)
         else:
             data["price_type"].x = torch.zeros((0, 3), dtype=torch.float32)
-
         if price_to_type_edges:
             data["price", "to", "price_type"].edge_index = torch.tensor(
                 price_to_type_edges, dtype=torch.long
             ).t()
         else:
             data["price", "to", "price_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
-        # ---------- industry_type（行业，与 price 一一对应）+ virtual_industry ----------
         industry_type_feats = []
         price_to_industry_edges = []
         default_ind_id = 0
@@ -2184,7 +2152,6 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             ).t()
         else:
             data["price", "to", "industry_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
         num_industry_vi = max(int(getattr(self, "num_industries_dataset", 27)), 1)
         data["virtual_industry"].x = torch.zeros((num_industry_vi, 1), dtype=torch.float32)
         industry_type_to_vi = []
@@ -2203,8 +2170,6 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             if industry_type_to_vi
             else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # ---------- rule_trend_type（规则趋势，与 price 一一对应）+ virtual_rule_trend（8 类） ----------
         rule_trend_type_feats = []
         price_to_rule_trend_edges = []
         if data["price"].x.size(0) > 0 and len(range_dates) > 0:
@@ -2227,10 +2192,9 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 price_to_rule_trend_edges, dtype=torch.long
             ).t()
         else:
-            data["price", "to", "rule_trend_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
-        # ---------- label 节点（与 price 一一对应，不连边） ----------
-        # 预测目标日 d：label = d 当日收益；vol = d 相对 prev(d) 成交量变化
+            data["price", "to", "rule_trend_type"].edge_index = torch.zeros(
+                (2, 0), dtype=torch.long
+            )
         label_bin = []
         label_org = []
         label_strong = []
@@ -2269,32 +2233,30 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             except Exception:
                 y = 0.0
             y_bin = 1.0 if y > 0.0 else 0.0
-            is_strong = 1.0 if (y > 0.0055 or y < -0.005) else 0.0
+            is_strong = 1.0 if y > 0.0055 or y < -0.005 else 0.0
             label_org.append(y)
             label_bin.append(y_bin)
             label_strong.append(is_strong)
-            vb, vo, vv = _vol_change_from_map(
-                getattr(self, "volume", None) or {},
-                comp_name,
-                cur_date,
-                prev_date,
+            (vb, vo, vv) = _vol_change_from_map(
+                getattr(self, "volume", None) or {}, comp_name, cur_date, prev_date
             )
             vol_bin.append(vb)
             vol_org.append(vo)
             vol_valid.append(vv)
-
         data["price"].raw_line = price_raw_line
         if label_bin:
-            data["label"].x = torch.tensor(label_bin, dtype=torch.float32).view(-1, 1)   # 二分类标签
-            data["label"].org = torch.tensor(label_org, dtype=torch.float32).view(-1, 1)  # 原始收益
-            data["label"].strong_mask = torch.tensor(label_strong, dtype=torch.bool).view(-1, 1)  # 大波动样本
+            data["label"].x = torch.tensor(label_bin, dtype=torch.float32).view(-1, 1)
+            data["label"].org = torch.tensor(label_org, dtype=torch.float32).view(-1, 1)
+            data["label"].strong_mask = torch.tensor(label_strong, dtype=torch.bool).view(-1, 1)
             data["label"].vol_x = torch.tensor(vol_bin, dtype=torch.float32).view(-1, 1)
             data["label"].vol_org = torch.tensor(vol_org, dtype=torch.float32).view(-1, 1)
             data["label"].vol_valid_mask = torch.tensor(vol_valid, dtype=torch.bool).view(-1, 1)
             if hasattr(data["price"], "valid_mask"):
                 data["label"].valid_mask = data["price"].valid_mask.clone()
             else:
-                data["label"].valid_mask = torch.ones_like(data["label"].strong_mask, dtype=torch.bool)
+                data["label"].valid_mask = torch.ones_like(
+                    data["label"].strong_mask, dtype=torch.bool
+                )
         else:
             data["label"].x = torch.zeros((0, 1), dtype=torch.float32)
             data["label"].org = torch.zeros((0, 1), dtype=torch.float32)
@@ -2303,13 +2265,9 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             data["label"].vol_x = torch.zeros((0, 1), dtype=torch.float32)
             data["label"].vol_org = torch.zeros((0, 1), dtype=torch.float32)
             data["label"].vol_valid_mask = torch.zeros((0, 1), dtype=torch.bool)
-
-        # ---------- 虚拟节点 ----------
         num_comp = len(self.companies)
         num_seg = len(range_dates)
         n_price = data["price"].x.size(0)
-
-        # 1) 虚拟窗口节点 virtual_window：本段实际天数 num_seg（最多 num_virtual_window），day_id 直接对齐
         vw_cap = max(1, int(self.num_virtual_window))
         vw_num = min(vw_cap, num_seg)
         data["virtual_window"].x = torch.zeros((vw_num, 1), dtype=torch.float32)
@@ -2330,10 +2288,9 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         )
         data["news", "to", "virtual_window"].edge_index = (
             torch.tensor(vw_edges_news, dtype=torch.long).t()
-            if vw_edges_news else torch.zeros((2, 0), dtype=torch.long)
+            if vw_edges_news
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 1b) virtual_news：个数与 price 相同，一一对应；news 按 (company_id, day_id) 连到对应 price 的 virtual_news
         vn_num = n_price
         data["virtual_news"].x = torch.zeros((vn_num, 1), dtype=torch.float32)
         p_to_vn = [[p_idx, p_idx] for p_idx in range(n_price)]
@@ -2341,7 +2298,7 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
         for p_idx in range(n_price):
             comp_idx = int(data["price"].company_id[p_idx].item())
             day_id = int(data["price"].day_id[p_idx].item())
-            key2pidx[(comp_idx, day_id)] = p_idx
+            key2pidx[comp_idx, day_id] = p_idx
         n_to_vn = []
         for n_idx in range(data["news"].x.size(0)):
             comp_idx = int(data["news"].company_id[n_idx].item())
@@ -2349,14 +2306,12 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
             p_idx = key2pidx.get((comp_idx, day_id))
             if p_idx is not None:
                 n_to_vn.append([n_idx, p_idx])
-        # 按需求：virtual_news 与 price 不连边，只保证个数一一对应
         data["price", "to", "virtual_news"].edge_index = torch.zeros((2, 0), dtype=torch.long)
         data["news", "to", "virtual_news"].edge_index = (
             torch.tensor(n_to_vn, dtype=torch.long).t()
-            if n_to_vn else torch.zeros((2, 0), dtype=torch.long)
+            if n_to_vn
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 2) virtual_news_type：13 种（market=1, industry=1, individual 细分类 11 种 id 1..11）
         NUM_NEWS_TYPE = NUM_VIRTUAL_NEWS_TYPES
         data["virtual_news_type"].x = torch.zeros((NUM_NEWS_TYPE, 1), dtype=torch.float32)
         news_type_to_vnt = []
@@ -2370,23 +2325,34 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                     vnt_idx = 1
                 else:
                     sid = subtype_id if 1 <= subtype_id <= 11 else 11
-                    vnt_idx = 1 + sid  # subtype 1..11 -> vnt 2..12
+                    vnt_idx = 1 + sid
                 vnt_idx = min(vnt_idx, NUM_NEWS_TYPE - 1)
                 news_type_to_vnt.append([t_idx, vnt_idx])
         data["news_type", "to", "virtual_news_type"].edge_index = (
             torch.tensor(news_type_to_vnt, dtype=torch.long).t()
-            if news_type_to_vnt else torch.zeros((2, 0), dtype=torch.long)
+            if news_type_to_vnt
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 3) virtual_price_type：固定 10 种（来源可选：rule/kmeans/dbscan/mix）
         NUM_PRICE_TYPE = 10
         data["virtual_price_type"].x = torch.zeros((NUM_PRICE_TYPE, 1), dtype=torch.float32)
         price_type_to_vpt = []
         if data["price_type"].x.size(0) > 0:
             for t_idx in range(data["price_type"].x.size(0)):
-                kmeans_id = int(data["price_type"].x[t_idx, 0].item()) if data["price_type"].x[t_idx, 0].item() >= 0 else 0
-                dbscan_id = int(data["price_type"].x[t_idx, 1].item()) if data["price_type"].x[t_idx, 1].item() >= 0 else 0
-                rule_id = int(data["price_type"].x[t_idx, 2].item()) if data["price_type"].x[t_idx, 2].item() >= 0 else 0
+                kmeans_id = (
+                    int(data["price_type"].x[t_idx, 0].item())
+                    if data["price_type"].x[t_idx, 0].item() >= 0
+                    else 0
+                )
+                dbscan_id = (
+                    int(data["price_type"].x[t_idx, 1].item())
+                    if data["price_type"].x[t_idx, 1].item() >= 0
+                    else 0
+                )
+                rule_id = (
+                    int(data["price_type"].x[t_idx, 2].item())
+                    if data["price_type"].x[t_idx, 2].item() >= 0
+                    else 0
+                )
                 src = getattr(self, "price_type_source", "rule")
                 if src == "kmeans":
                     src_id = kmeans_id
@@ -2400,26 +2366,25 @@ class _CSMDBuilderDataset(torch.utils.data.Dataset):
                 price_type_to_vpt.append([t_idx, vpt_idx])
         data["price_type", "to", "virtual_price_type"].edge_index = (
             torch.tensor(price_type_to_vpt, dtype=torch.long).t()
-            if price_type_to_vpt else torch.zeros((2, 0), dtype=torch.long)
+            if price_type_to_vpt
+            else torch.zeros((2, 0), dtype=torch.long)
         )
         data["virtual_price_type", "to", "price_type"].edge_index = (
             data["price_type", "to", "virtual_price_type"].edge_index.flip(0)
-            if price_type_to_vpt else torch.zeros((2, 0), dtype=torch.long)
+            if price_type_to_vpt
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
         data["range_dates"] = range_dates
         return buffer_to_window_sample(data)
 
-# --- CMIN-CN / CMIN-US ---
 
 class _CMINBuilderDataset(torch.utils.data.Dataset):
+
     def _load_all_data(self, root):
         return load_cmin_cn_all_data(
             root,
             news_type_subdir=getattr(self, "news_type_subdir", "news_type"),
-            require_wind_news_source=bool(
-                getattr(self, "require_wind_news_source", True)
-            ),
+            require_wind_news_source=bool(getattr(self, "require_wind_news_source", True)),
         )
 
     def __len__(self) -> int:
@@ -2428,19 +2393,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int) -> WindowSample:
         return self.get(idx)
 
-    """
-    将 CMIN-CN 的多源数据封装成按时间窗口切分的异构图 Dataset。
-
-    节点类型（共 8 类）：xwxw
-      - price（特征 8 列：原 3 列 + 星期几 one-hot 5 维）
-      - news
-      - news_type
-      - price_type
-      - virtual_window（固定个数，如 10）
-      - virtual_news（个数与 price 相同、一一对应，news 按 (company_id, day_id) 连到对应 virtual_news）
-      - virtual_news_type（12 种：market 1 + industry 1 + individual 聚类 10）
-      - virtual_price_type（固定 10 种；映射来源见 price_type_source，默认仅用 rule）
-    """
+    "Market-window dataset construction."
 
     def __init__(
         self,
@@ -2480,7 +2433,9 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         self.price_window = price_window
         self.news_cluster_k = news_cluster_k
         self.price_type_source = str(price_type_source).lower()
-        self.num_virtual_window = num_virtual_window if num_virtual_window is not None else seg_length
+        self.num_virtual_window = (
+            num_virtual_window if num_virtual_window is not None else seg_length
+        )
         self.news_padding_k = int(news_padding_k)
         self.use_cached_news_padding_emb = bool(use_cached_news_padding_emb)
         self.news_padding_emb_cache_path = news_padding_emb_cache_path
@@ -2496,15 +2451,13 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         self.split_mode = str(split_mode or "contiguous").strip().lower() or "contiguous"
         self.train_lookback_purge = bool(train_lookback_purge)
         self._root_tag = hashlib.md5(os.path.abspath(str(root)).encode("utf-8")).hexdigest()[:8]
-
-        # 1) 读取全部数据
         all_data = self._load_all_data(root)
-        self.stock_data = all_data["stock_data"]      # {stock_name: {date: [f3,f4,f5]}}
+        self.stock_data = all_data["stock_data"]
         self.label = all_data["label"]
-        self.volume = all_data.get("volume", {})  # {stock: {date: abs volume}}
-        self.raw_line = all_data.get("raw_line", {})  # {company: {date: 原始行}} 用于 label 校验
-        self.news_texts = all_data["news_texts"]      # {company}{date}{news_id}: text
-        self.news_types = all_data["news_types"]      # {company}{date}{news_id}: type
+        self.volume = all_data.get("volume", {})
+        self.raw_line = all_data.get("raw_line", {})
+        self.news_texts = all_data["news_texts"]
+        self.news_types = all_data["news_types"]
         self.news_clusters = all_data["news_clusters"]
         self.cluster_trend = all_data["cluster_trend"]
         self.rule_trend = all_data["rule_trend"]
@@ -2512,8 +2465,6 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         self.code_to_name = all_data["code_to_name"]
         self.name_to_code = all_data["name_to_code"]
         self.industry_dict = load_industry_dict()
-        # Always use dense local ids from this dataset's comp_indus.csv (0..K-1).
-        # Do NOT map through global industry_dict.pkl (names often mismatch → collapse).
         self._industry_cn_to_id = {}
         _local_cns = sorted(
             {
@@ -2523,19 +2474,15 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             }
         )
         if _local_cns:
-            self._industry_cn_to_id = {cn: i for i, cn in enumerate(_local_cns)}
+            self._industry_cn_to_id = {cn: i for (i, cn) in enumerate(_local_cns)}
             self._num_industries_graph = max(len(_local_cns), 1)
         else:
             self._num_industries_graph = 27
         self.num_industries_dataset = int(self._num_industries_graph)
         print(
-            f"[CMIN_Dataset] industry local map n={self._num_industries_graph} "
-            f"(dense ids from comp_indus; not industry_dict)",
+            f"[CMIN_Dataset] industry local map n={self._num_industries_graph} (dense ids from comp_indus; not industry_dict)",
             flush=True,
         )
-
-        # 为每个公司预先构建 日期 -> 下一/上一交易日（用于价格序列与 label 对齐）
-        # 预测目标日 d：价格序列用 prev_date 及前 9 天（最后一行=prev_date），label 取 d 的收益
         self.next_label_date = {}
         self.prev_date = {}
         for comp, day_dict in self.stock_data.items():
@@ -2552,32 +2499,25 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 prev_map[dates_sorted[i]] = dates_sorted[i - 1]
             self.next_label_date[comp] = nxt_map
             self.prev_date[comp] = prev_map
-
-        # FinBERT tokenizer（vocab 模式可跳过以加速）
-        _default_fb = _default_finbert_path(us=False)
+        _default_fb = "models/finbert-tone-chinese"
         finbert_model_path = str(finbert_model_path or "").strip() or _default_fb
         self._finbert_model_path = finbert_model_path
         self.news_tokenizer = None
         if not self.skip_finbert_tokenizer:
             self.news_tokenizer = AutoTokenizer.from_pretrained(finbert_model_path)
         self.news_max_len = 128
-
-        # vocab tokenizer（paper EN: dict_massive 词级）
-        vocab_file = resolve_vocab_path(vocab_path, "dict_massive.pkl")
+        vocab_file = resolve_vocab_path(vocab_path, "dict_cn.pkl", "dict_us.pkl")
         self.vocab = pkl.load(open(vocab_file, "rb"))
         self.vocab_pad_id = int(self.vocab.get("<pad>", 0))
         self.vocab_unk_id = int(self.vocab.get("<unk>", 0))
         self.vocab_word_level = is_us_vocab_path(vocab_file)
-        _vocab_mode = "word-level (dict_massive)" if self.vocab_word_level else "char-level"
+        _vocab_mode = "word-level (dict_us/dict_massive)" if self.vocab_word_level else "char-level"
         _wind = "Wind-only" if self.require_wind_news_source else "all-sources"
         _rw = "ON" if self.require_window_news else "off"
         print(
-            f"[CMIN_Dataset] vocab {_vocab_mode}: {vocab_file}; news={_wind}; "
-            f"require_window_news={_rw}",
+            f"[CMIN_Dataset] vocab {_vocab_mode}: {vocab_file}; news={_wind}; require_window_news={_rw}",
             flush=True,
         )
-
-        # 离线缓存：优先 news 节点 FinBERT emb（主路径）
         self.news_padding_emb_cache = None
         self.news_padding_emb_cache_root = None
         self.news_node_emb_cache_root = None
@@ -2595,12 +2535,11 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 self.news_padding_emb_cache = torch.load(cache_path, map_location="cpu")
                 print(f"[CMIN_Dataset] loaded news_padding emb cache file: {cache_path}")
             else:
-                print(f"[CMIN_Dataset] cache not found: {cache_path} (run --mode precompute_news_emb)")
-
+                print(
+                    f"[CMIN_Dataset] cache not found: {cache_path} (run --mode precompute_news_emb)"
+                )
         self.companies = sorted(list(self.stock_data.keys()))
-        self.company2id = {c: i for i, c in enumerate(self.companies)}
-
-        # 2) 数据集时间划分（可由 split_dates / profile 覆盖）
+        self.company2id = {c: i for (i, c) in enumerate(self.companies)}
         _default_period = {
             "train_start": "2018-01-01",
             "train_end": "2021-04-30",
@@ -2611,7 +2550,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         }
         full_period = dict(_default_period)
         if self.split_dates:
-            full_period.update({k: str(v) for k, v in self.split_dates.items() if v})
+            full_period.update({k: str(v) for (k, v) in self.split_dates.items() if v})
         if mode == "train":
             self.start_date = full_period["train_start"]
             self.end_date = full_period["train_end"]
@@ -2622,70 +2561,50 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             self.start_date = full_period["test_start"]
             self.end_date = full_period["test_end"]
         if self.split_mode == "stagger_4y":
-            print(
-                f"[CMINBuilderDataset] split_mode=stagger_4y mode={mode}",
-                flush=True,
-            )
+            print(f"[CMINBuilderDataset] split_mode=stagger_4y mode={mode}", flush=True)
         elif self.split_mode == "seasonal_h1q3q4":
             _months = sorted(SEASONAL_H1Q3Q4_MONTHS.get(mode, set()))
             print(
-                f"[CMINBuilderDataset] split_mode=seasonal_h1q3q4 mode={mode} "
-                f"months={_months}",
+                f"[CMINBuilderDataset] split_mode=seasonal_h1q3q4 mode={mode} months={_months}",
                 flush=True,
             )
         elif self.split_mode == "week_roundrobin":
             print(
-                f"[CMINBuilderDataset] split_mode=week_roundrobin mode={mode} "
-                f"ISO-week 6:2:2; train lookback-purge (price_window={self.price_window})",
+                f"[CMINBuilderDataset] split_mode=week_roundrobin mode={mode} ISO-week 6:2:2; train lookback-purge (price_window={self.price_window})",
                 flush=True,
             )
         elif self.split_mode == "month_roundrobin":
             print(
-                f"[CMINBuilderDataset] split_mode=month_roundrobin mode={mode} "
-                f"calendar-month 4:1:1; train lookback-purge (price_window={self.price_window})",
+                f"[CMINBuilderDataset] split_mode=month_roundrobin mode={mode} calendar-month 4:1:1; train lookback-purge (price_window={self.price_window})",
                 flush=True,
             )
         elif self.split_mode == "timefrac_622":
             print(
-                f"[CMINBuilderDataset] split_mode=timefrac_622 mode={mode} "
-                f"chronological 60%/20%/20% by trading days",
+                f"[CMINBuilderDataset] split_mode=timefrac_622 mode={mode} chronological 60%/20%/20% by trading days",
                 flush=True,
             )
         elif self.split_mode in NEW_ROLE_SPLIT_MODES:
             print(
-                f"[CMINBuilderDataset] split_mode={self.split_mode} mode={mode} "
-                f"(NEW role-split + train lookback purge, pw={self.price_window})",
+                f"[CMINBuilderDataset] split_mode={self.split_mode} mode={mode} (NEW role-split + train lookback purge, pw={self.price_window})",
                 flush=True,
             )
         else:
             print(
-                f"[CMINBuilderDataset] split mode={mode} "
-                f"range=[{self.start_date},{self.end_date}]",
+                f"[CMINBuilderDataset] split mode={mode} range=[{self.start_date},{self.end_date}]",
                 flush=True,
             )
-
-        # 与 main_csmd_50 一致：全量日历保留，预测日受 start/end 约束；lookback 可跨上一 split
-        # week/month_roundrobin: train 侧禁止 lookback 落入 val/test
         print(
-            f"[CMINBuilderDataset] cross-split lookback enabled "
-            f"(predict_range=[{self.start_date},{self.end_date}] "
-            f"split_mode={self.split_mode})",
+            f"[CMINBuilderDataset] cross-split lookback enabled (predict_range=[{self.start_date},{self.end_date}] split_mode={self.split_mode})",
             flush=True,
         )
-
-        # 可选：只保留新闻覆盖最好的一小撮公司（小子集加速）
         self._apply_company_subset_if_needed()
-
-        # 3) 构建全局日期轴，并在当前 mode 的时间段内，生成可用日期列表（再按 seg_length 分段）
         self.global_dates = self._build_global_trading_dates()
         if self.split_mode == "week_roundrobin":
             _st = week_roundrobin_split_stats(
                 self.global_dates, price_window=int(self.price_window)
             )
             print(
-                f"[CMINBuilderDataset] week_roundrobin stats: weeks={_st['n_iso_weeks']} "
-                f"raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} "
-                f"train_purged={_st['train_purged']}",
+                f"[CMINBuilderDataset] week_roundrobin stats: weeks={_st['n_iso_weeks']} raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} train_purged={_st['train_purged']}",
                 flush=True,
             )
         if self.split_mode == "month_roundrobin":
@@ -2693,16 +2612,13 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 self.global_dates, price_window=int(self.price_window)
             )
             print(
-                f"[CMINBuilderDataset] month_roundrobin stats: months={_st['n_months']} "
-                f"raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} "
-                f"train_purged={_st['train_purged']}",
+                f"[CMINBuilderDataset] month_roundrobin stats: months={_st['n_months']} raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} train_purged={_st['train_purged']}",
                 flush=True,
             )
         if self.split_mode == "timefrac_622":
             _st = timefrac_622_split_stats(self.global_dates)
             print(
-                f"[CMINBuilderDataset] timefrac_622 stats: counts={_st['counts']} "
-                f"train={_st['train_range']} val={_st['val_range']} test={_st['test_range']}",
+                f"[CMINBuilderDataset] timefrac_622 stats: counts={_st['counts']} train={_st['train_range']} val={_st['val_range']} test={_st['test_range']}",
                 flush=True,
             )
         if self.split_mode in NEW_ROLE_SPLIT_MODES:
@@ -2717,51 +2633,44 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 train_lookback_purge=_purge,
             )
             print(
-                f"[CMINBuilderDataset] {self.split_mode} stats: raw={_st['raw_role_days']} "
-                f"train_kept={_st['train_after_purge']} train_purged={_st['train_purged']} "
-                f"lookback_purge={_purge}",
+                f"[CMINBuilderDataset] {self.split_mode} stats: raw={_st['raw_role_days']} train_kept={_st['train_after_purge']} train_purged={_st['train_purged']} lookback_purge={_purge}",
                 flush=True,
             )
         self.valid_dates = self._build_valid_dates_for_mode()
         self._rebuild_seg_windows()
         if self.split_mode == "week_roundrobin":
             print(
-                f"[CMINBuilderDataset] week_roundrobin mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CMINBuilderDataset] week_roundrobin mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode == "month_roundrobin":
             print(
-                f"[CMINBuilderDataset] month_roundrobin mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CMINBuilderDataset] month_roundrobin mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode == "timefrac_622":
             print(
-                f"[CMINBuilderDataset] timefrac_622 mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CMINBuilderDataset] timefrac_622 mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode in NEW_ROLE_SPLIT_MODES:
             print(
-                f"[CMINBuilderDataset] {self.split_mode} mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CMINBuilderDataset] {self.split_mode} mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
         elif self.split_mode == "stagger_4y":
             print(
-                f"[CMINBuilderDataset] stagger_4y mode={mode} "
-                f"n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
+                f"[CMINBuilderDataset] stagger_4y mode={mode} n_valid_dates={len(self.valid_dates)} n_windows={len(self._seg_windows)}",
                 flush=True,
             )
 
     def _count_window_news_valid_days(self, comp: str) -> int:
-        """当前 split 内，价格窗 K 天每天都有新闻的交易日数。"""
+        """Count window news valid days."""
         cds = sorted(self.stock_data.get(comp, {}) or {})
         if not cds:
             return 0
         news = self.news_texts.get(comp, {}) or {}
-        pos = {d: i for i, d in enumerate(cds)}
+        pos = {d: i for (i, d) in enumerate(cds)}
         pw = max(1, int(self.price_window))
         n = 0
         for d in getattr(self, "valid_dates", None) or [
@@ -2770,7 +2679,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             if d not in pos or pos[d] < pw:
                 continue
             last = cds[pos[d] - pw : pos[d]]
-            if all((dd in news) and bool(news[dd]) for dd in last):
+            if all((dd in news and bool(news[dd]) for dd in last)):
                 n += 1
         return n
 
@@ -2781,23 +2690,20 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             return
         if wl:
             have = set(self.companies)
-            keep = [c for c in wl if c in have]  # 保持 train 选出的顺序
+            keep = [c for c in wl if c in have]
         else:
-            # 先有临时 valid_dates 用于打分
             self.global_dates = self._build_global_trading_dates()
             self.valid_dates = self._build_valid_dates_for_mode()
             scored = [(c, self._count_window_news_valid_days(c)) for c in self.companies]
             scored.sort(key=lambda x: (-x[1], x[0]))
-            keep = [c for c, _ in scored[:top_n]]
+            keep = [c for (c, _) in scored[:top_n]]
             print(
-                f"[CMINBuilderDataset] subset_top_companies={top_n} "
-                f"coverage_top={scored[0][1] if scored else 0} "
-                f"coverage_cut={scored[min(top_n, len(scored))-1][1] if scored else 0}",
+                f"[CMINBuilderDataset] subset_top_companies={top_n} coverage_top={(scored[0][1] if scored else 0)} coverage_cut={(scored[min(top_n, len(scored)) - 1][1] if scored else 0)}",
                 flush=True,
             )
         keep_set = set(keep)
         self.companies = keep
-        self.company2id = {c: i for i, c in enumerate(self.companies)}
+        self.company2id = {c: i for (i, c) in enumerate(self.companies)}
         for attr in (
             "stock_data",
             "label",
@@ -2812,10 +2718,9 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         ):
             d = getattr(self, attr, None)
             if isinstance(d, dict):
-                setattr(self, attr, {c: v for c, v in d.items() if c in keep_set})
+                setattr(self, attr, {c: v for (c, v) in d.items() if c in keep_set})
         print(
-            f"[CMINBuilderDataset] company subset mode={self.mode} n={len(self.companies)} "
-            f"({', '.join(self.companies[:5])}{'...' if len(self.companies) > 5 else ''})",
+            f"[CMINBuilderDataset] company subset mode={self.mode} n={len(self.companies)} ({', '.join(self.companies[:5])}{('...' if len(self.companies) > 5 else '')})",
             flush=True,
         )
 
@@ -2834,7 +2739,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             return [d for d in self.global_dates if date_in_seasonal_h1q3q4(d, self.mode)]
         if sm == "week_roundrobin":
             roles = build_week_roundrobin_roles(self.global_dates)
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
             pw = max(1, int(getattr(self, "price_window", 5) or 5))
             return [
                 d
@@ -2850,7 +2755,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             ]
         if sm == "month_roundrobin":
             roles = build_month_roundrobin_roles(self.global_dates)
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
             pw = max(1, int(getattr(self, "price_window", 5) or 5))
             return [
                 d
@@ -2865,8 +2770,8 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 )
             ]
         if sm == "timefrac_622":
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
-            te, ve = timefrac_622_cut_indices(len(self.global_dates))
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
+            (te, ve) = timefrac_622_cut_indices(len(self.global_dates))
             return [
                 d
                 for d in self.global_dates
@@ -2883,7 +2788,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             roles = resolve_new_role_split_roles(
                 sm, self.global_dates, start_date=getattr(self, "start_date", None)
             )
-            date_to_pos = {x: i for i, x in enumerate(self.global_dates)}
+            date_to_pos = {x: i for (i, x) in enumerate(self.global_dates)}
             pw = max(1, int(getattr(self, "price_window", 5) or 5))
             do_purge = bool(getattr(self, "train_lookback_purge", True))
             return [
@@ -2910,9 +2815,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             keep_tail=bool(getattr(self, "seg_keep_tail", False)),
             break_on_month=_split_mode_break_on_month(getattr(self, "split_mode", None)),
             defer_months=_defer_months_for_split(
-                getattr(self, "split_mode", None),
-                gdates,
-                getattr(self, "start_date", None),
+                getattr(self, "split_mode", None), gdates, getattr(self, "start_date", None)
             ),
         )
 
@@ -2931,17 +2834,16 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         return list(wins[idx])
 
     def _resolve_trend_date(self, comp_name: str, target_date: str) -> str:
-        """趋势/price_type 用 prev(target_date)，与 trend CSV 在预测 d 时可知的形态一致。"""
+        """Resolve trend date."""
         prev_d = self.prev_date.get(comp_name, {}).get(target_date)
         return prev_d if prev_d else target_date
 
     def _ensure_trend_prev_date(self, data, range_dates):
-        """旧缓存 price_type 对齐 prev(target_date)。"""
+        """Ensure trend prev date."""
         if not range_dates or data["price"].x.size(0) == 0:
             return
         if "price_type" not in data.node_types or data["price_type"].x.size(0) == 0:
             return
-
         pt_feats = []
         for p_idx in range(data["price"].x.size(0)):
             comp_idx = int(data["price"].company_id[p_idx].item())
@@ -2950,42 +2852,41 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             target_date = range_dates[day_i]
             trend_date = self._resolve_trend_date(comp_name, target_date)
             ct = self.cluster_trend.get(comp_name, {}).get(trend_date, {})
-            kmeans_id = int(ct["kmeans_cluster"]) if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None else -1
-            dbscan_id = int(ct["dbscan_cluster"]) if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None else -1
+            kmeans_id = (
+                int(ct["kmeans_cluster"])
+                if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None
+                else -1
+            )
+            dbscan_id = (
+                int(ct["dbscan_cluster"])
+                if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None
+                else -1
+            )
             rt_cn = self.rule_trend.get(comp_name, {}).get(trend_date, None)
             rule_id = float(rule_trend_cn_to_id(rt_cn))
             pt_feats.append(torch.tensor([kmeans_id, dbscan_id, rule_id], dtype=torch.float32))
         data["price_type"].x = torch.stack(pt_feats, dim=0)
 
-
     def get(self, idx):
-        """
-        返回一个 HeteroData，表示一个时间窗口内全市场的异构图。
-        """
+        """Get."""
         range_dates = self._range_dates_for_idx(idx)
-
         data = BatchBuffer()
-
-        # ---------- price 节点：固定为 [num_seg * num_comp]（缺失补零，用 valid_mask 标记） ----------
-        # 顺序固定为 day-major：idx = day_i * num_comp + comp_idx
-        num_comp = len(self.companies)  # 目标通常为 300
+        num_comp = len(self.companies)
         num_seg = len(range_dates)
         n_price_fixed = num_seg * num_comp
         price_x = torch.zeros((n_price_fixed, self.price_window, 8), dtype=torch.float32)
-        date_x = torch.zeros((n_price_fixed, self.price_window, 1), dtype=torch.float32)  # day-of-year frac
+        date_x = torch.zeros((n_price_fixed, self.price_window, 1), dtype=torch.float32)
         vol_seq = torch.zeros((n_price_fixed, self.price_window, 1), dtype=torch.float32)
         price_comp_ids = torch.zeros((n_price_fixed,), dtype=torch.long)
         price_day_ids = torch.zeros((n_price_fixed,), dtype=torch.long)
         price_valid_mask = torch.zeros((n_price_fixed, 1), dtype=torch.bool)
-
         comp_date_to_pos = {}
         comp_dates_sorted_map = {}
         for comp in self.companies:
             day_dict = self.stock_data.get(comp, {})
             cds = sorted(day_dict.keys()) if day_dict else []
             comp_dates_sorted_map[comp] = cds
-            comp_date_to_pos[comp] = {d: i for i, d in enumerate(cds)}
-
+            comp_date_to_pos[comp] = {d: i for (i, d) in enumerate(cds)}
         for day_i, d in enumerate(range_dates):
             for comp_idx, comp in enumerate(self.companies):
                 p_idx = day_i * num_comp + comp_idx
@@ -2994,13 +2895,12 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 day_dict = self.stock_data.get(comp, {})
                 date_to_pos = comp_date_to_pos.get(comp, {})
                 comp_dates_sorted = comp_dates_sorted_map.get(comp, [])
-                if (not day_dict) or (d not in date_to_pos):
+                if not day_dict or d not in date_to_pos:
                     continue
                 pos = date_to_pos[d]
-                # d 是预测目标日，价格序列用 d 的前一天及之前 price_window-1 天，最后一行是 prev_date
                 if pos < self.price_window:
                     continue
-                last_k_dates = comp_dates_sorted[pos - self.price_window: pos]
+                last_k_dates = comp_dates_sorted[pos - self.price_window : pos]
                 feat_seq_8 = []
                 date_seq_1 = []
                 for dd in last_k_dates:
@@ -3019,14 +2919,10 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     date_seq_1.append([_day_of_year_frac(dd)])
                 if len(feat_seq_8) != self.price_window:
                     continue
-                # 可选：价格窗 K 天每天都要有新闻（与 UniTrans 5 日 news token 对齐）
                 if bool(getattr(self, "require_window_news", False)):
                     comp_news = self.news_texts.get(comp, {})
-                    if not all(
-                        (dd in comp_news) and bool(comp_news[dd]) for dd in last_k_dates
-                    ):
+                    if not all((dd in comp_news and bool(comp_news[dd]) for dd in last_k_dates)):
                         continue
-                # 监督：标签取预测目标日 d 的收益（row d 的 parts[1]），不是下一日
                 raw_label_d = self.label.get(comp, {}).get(d, None)
                 try:
                     y_d = float(raw_label_d) if raw_label_d is not None else None
@@ -3047,20 +2943,15 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     dtype=torch.float32,
                 )
                 price_valid_mask[p_idx] = True
-
         data["price"].x = price_x
         data["date"].x = date_x
         data["price"].vol_seq = vol_seq
         data["price"].company_id = price_comp_ids
         data["price"].day_id = price_day_ids
         data["price"].valid_mask = price_valid_mask
-        # 每个 price 节点对应的交易日（该样本测试的是哪天的 date）
         data["price"].date = [
-            range_dates[int(price_day_ids[p_idx].item())]
-            for p_idx in range(n_price_fixed)
+            range_dates[int(price_day_ids[p_idx].item())] for p_idx in range(n_price_fixed)
         ]
-
-        # require_window_news：只为 valid 样本的 UniTrans K 日窗准备新闻，避免全量新闻拖慢
         need_news_slots: set[tuple[int, int]] | None = None
         if bool(getattr(self, "require_window_news", False)):
             K_news = max(1, int(self.price_window))
@@ -3072,21 +2963,17 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                         continue
                     for j in range(max(0, day_i - K_news + 1), day_i + 1):
                         need_news_slots.add((comp_idx, j))
-
-        # ---------- news 节点 ----------
-        # 防泄漏：不能用预测日 d 的新闻预测当日收益，改用预测日的前一交易日 prev_date 的新闻
         news_company_ids = []
         news_dates = []
         news_types_str = []
         news_text_list = []
         news_ids = []
-        news_target_day_ids = []  # 该新闻用于预测哪个 day_id 对应的交易日
+        news_target_day_ids = []
         _news_cap = (
             max(1, int(self.news_padding_k))
             if bool(getattr(self, "require_window_news", False))
             else None
         )
-
         for comp_idx, comp in enumerate(self.companies):
             if comp not in self.news_texts:
                 continue
@@ -3113,11 +3000,9 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     news_ids.append(news_id)
                     ttype = comp_type_by_date.get(prev_date, {}).get(news_id, "")
                     news_types_str.append(ttype)
-
         if news_text_list:
             Nn = len(news_text_list)
             if self.skip_finbert_tokenizer:
-                # vocab 模式：不跑 FinBERT tokenizer，仅占位（模型只用 vocab_*）
                 data["news"].input_ids = torch.zeros((Nn, self.news_max_len), dtype=torch.long)
                 data["news"].attention_mask = torch.zeros((Nn, self.news_max_len), dtype=torch.long)
             else:
@@ -3139,8 +3024,6 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             data["news"].type = news_types_str
             data["news"].news_id = news_ids
             data["news"].text = news_text_list
-
-            # vocab token（dict_us 词级；dict_cn 字符级）
             MAX_SEQ_LEN = 100
             vocab_input_ids = []
             vocab_attention = []
@@ -3153,12 +3036,11 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     word_level=self.vocab_word_level,
                     use_jieba=getattr(self, "vocab_use_jieba", False),
                 )
-                idx, attn = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
+                (idx, attn) = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
                 vocab_input_ids.append(idx)
                 vocab_attention.append(attn)
             data["news"].vocab_input_ids = torch.tensor(vocab_input_ids, dtype=torch.long)
             data["news"].vocab_attention_mask = torch.tensor(vocab_attention, dtype=torch.long)
-            # 离线 FinBERT：主路径 news.emb [N,768]
             if getattr(self, "news_node_emb_cache_root", None):
                 data["news"].emb = load_news_node_emb_rows(
                     self.news_node_emb_cache_root,
@@ -3179,23 +3061,16 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             data["news"].vocab_attention_mask = torch.zeros((0, 100), dtype=torch.long)
             if getattr(self, "news_node_emb_cache_root", None):
                 data["news"].emb = torch.zeros((0, 768), dtype=torch.float32)
-
-        # ---------- news_padding：按天取前 K 条新闻（不连 virtual_news） ----------
-        # 节点数 = N_price；每个节点 x 形状 (K, 1)，整体 x [N_price, K, 1]，与 price 行一一对齐。
-        # - FinBERT：input_ids / attention_mask 形状 [N_price, K, L]
-        # - 聚合在 model.py 中完成
         MAX_NEWS_PER_DAY = int(self.news_padding_k)
         MAX_SEQ_LEN = 100
         n_price = int(data["price"].x.size(0))
         data["news_padding"].x = torch.zeros((n_price, MAX_NEWS_PER_DAY, 1), dtype=torch.float32)
-
         texts_by_price = [[] for _ in range(n_price)]
         key2price_idx = {}
         for p_idx in range(n_price):
             c = int(data["price"].company_id[p_idx].item())
             d = int(data["price"].day_id[p_idx].item())
-            key2price_idx[(c, d)] = p_idx
-
+            key2price_idx[c, d] = p_idx
         for n_idx, txt in enumerate(news_text_list):
             c = int(news_company_ids[n_idx])
             target_d = int(news_target_day_ids[n_idx])
@@ -3204,7 +3079,6 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 continue
             if len(texts_by_price[p_idx]) < MAX_NEWS_PER_DAY:
                 texts_by_price[p_idx].append(txt)
-
         docs_mat: list[list[str]] = []
         is_real_mat: list[list[float]] = []
         for p_idx in range(n_price):
@@ -3220,15 +3094,12 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     row_real.append(0.0)
             docs_mat.append(row_docs)
             is_real_mat.append(row_real)
-
         if n_price > 0:
             data["news_padding"].is_real = torch.tensor(is_real_mat, dtype=torch.float32)
         else:
             data["news_padding"].is_real = torch.zeros((0, MAX_NEWS_PER_DAY), dtype=torch.float32)
-
         if n_price > 0:
             flat_docs = [d for row in docs_mat for d in row]
-            # (1) FinBERT token（vocab 模式跳过）
             if self.skip_finbert_tokenizer:
                 data["news_padding"].input_ids = torch.zeros(
                     (n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN), dtype=torch.long
@@ -3258,16 +3129,17 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                             token_type_ids_list.append(enc["token_type_ids"])
                         else:
                             use_token_type_ids = False
-
                 _ids = torch.cat(input_ids_list, dim=0)
                 _mask = torch.cat(attention_mask_list, dim=0)
                 data["news_padding"].input_ids = _ids.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-                data["news_padding"].attention_mask = _mask.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
+                data["news_padding"].attention_mask = _mask.view(
+                    n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+                )
                 if use_token_type_ids and len(token_type_ids_list) > 0:
                     _tt = torch.cat(token_type_ids_list, dim=0)
-                    data["news_padding"].token_type_ids = _tt.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-
-            # (2) vocab token（dict_us 词级；dict_cn/CSMD 字符级）
+                    data["news_padding"].token_type_ids = _tt.view(
+                        n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+                    )
             vocab_input_ids = []
             vocab_attention = []
             for doc in flat_docs:
@@ -3279,29 +3151,30 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     word_level=getattr(self, "vocab_word_level", False),
                     use_jieba=getattr(self, "vocab_use_jieba", False),
                 )
-                idx, attn = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
+                (idx, attn) = pad_vocab_ids(idx, self.vocab_pad_id, MAX_SEQ_LEN)
                 vocab_input_ids.append(idx)
                 vocab_attention.append(attn)
-
             _vocab_ids = torch.tensor(vocab_input_ids, dtype=torch.long)
             _vocab_attn = torch.tensor(vocab_attention, dtype=torch.long)
-            data["news_padding"].vocab_input_ids = _vocab_ids.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-            data["news_padding"].vocab_attention_mask = _vocab_attn.view(n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN)
-
-            # (3) 可选：离线缓存 embedding（FinBERT pooler_output）-> HeteroData.news_padding.emb [N,K,768]
-            # 主路径已挂 news.emb（by_news_id 全量缓存）时跳过 padding emb，避免重复 IO / 形状问题
+            data["news_padding"].vocab_input_ids = _vocab_ids.view(
+                n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+            )
+            data["news_padding"].vocab_attention_mask = _vocab_attn.view(
+                n_price, MAX_NEWS_PER_DAY, MAX_SEQ_LEN
+            )
             _skip_pad_emb = (
                 getattr(self, "news_node_emb_cache_root", None)
                 and hasattr(data["news"], "emb")
                 and isinstance(getattr(data["news"], "emb", None), torch.Tensor)
-                and int(data["news"].emb.numel()) > 0
+                and (int(data["news"].emb.numel()) > 0)
             )
-            if self.use_cached_news_padding_emb and not _skip_pad_emb:
+            if self.use_cached_news_padding_emb and (not _skip_pad_emb):
                 emb_dim = 768
-                # 优先：目录结构缓存 out_root/<company>/<date>.pt
-                if isinstance(self.news_padding_emb_cache_root, str) and self.news_padding_emb_cache_root:
+                if (
+                    isinstance(self.news_padding_emb_cache_root, str)
+                    and self.news_padding_emb_cache_root
+                ):
                     emb_out = torch.zeros((n_price, MAX_NEWS_PER_DAY, emb_dim), dtype=torch.float32)
-                    # 缺缓存文件时保留文本侧 is_real，避免整图被误判为全 padding
                     is_real_out = data["news_padding"].is_real.clone()
                     for p_idx in range(n_price):
                         comp_idx = int(data["price"].company_id[p_idx].item())
@@ -3310,9 +3183,15 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                         cur_date = range_dates[day_id]
                         comp_dates = comp_dates_sorted_map.get(comp_name, [])
                         date_to_pos = comp_date_to_pos.get(comp_name, {})
-                        prev_date = comp_dates[date_to_pos[cur_date] - 1] if cur_date in date_to_pos and date_to_pos[cur_date] >= 1 else None
+                        prev_date = (
+                            comp_dates[date_to_pos[cur_date] - 1]
+                            if cur_date in date_to_pos and date_to_pos[cur_date] >= 1
+                            else None
+                        )
                         date_str = prev_date if prev_date else cur_date
-                        fpath = os.path.join(self.news_padding_emb_cache_root, comp_name, f"{date_str}.pt")
+                        fpath = os.path.join(
+                            self.news_padding_emb_cache_root, comp_name, f"{date_str}.pt"
+                        )
                         if not os.path.exists(fpath):
                             continue
                         obj = torch.load(fpath, map_location="cpu")
@@ -3322,7 +3201,10 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                         n_day = len(texts_by_price[p_idx])
                         if not isinstance(emb, torch.Tensor) or emb.dim() != 2:
                             continue
-                        if layout in ("packed", "by_news_id") or int(emb.size(0)) != MAX_NEWS_PER_DAY:
+                        if (
+                            layout in ("packed", "by_news_id")
+                            or int(emb.size(0)) != MAX_NEWS_PER_DAY
+                        ):
                             n_f = int(emb.size(0))
                             n_take = min(n_f, n_day, MAX_NEWS_PER_DAY)
                             if n_take > 0:
@@ -3334,17 +3216,17 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                                 is_real_out[p_idx] = ir[:MAX_NEWS_PER_DAY].to(dtype=torch.float32)
                     data["news_padding"].emb = emb_out
                     data["news_padding"].is_real = is_real_out
-
-                # 兼容：旧版单文件缓存（不推荐）
                 elif self.news_padding_emb_cache is not None:
                     cache = self.news_padding_emb_cache
                     idx_map = cache.get("index", {})
-                    emb_cache = cache.get("emb", None)   # [N_pairs, K, 768]
-                    is_real_cache = cache.get("is_real", None)  # [N_pairs, K]
+                    emb_cache = cache.get("emb", None)
+                    is_real_cache = cache.get("is_real", None)
                     if isinstance(emb_cache, torch.Tensor) and emb_cache.numel() > 0:
                         Kc = int(cache.get("k", MAX_NEWS_PER_DAY))
                         if Kc == MAX_NEWS_PER_DAY:
-                            emb_out = torch.zeros((n_price, MAX_NEWS_PER_DAY, emb_cache.size(-1)), dtype=torch.float32)
+                            emb_out = torch.zeros(
+                                (n_price, MAX_NEWS_PER_DAY, emb_cache.size(-1)), dtype=torch.float32
+                            )
                             is_real_out = data["news_padding"].is_real.clone()
                             for p_idx in range(n_price):
                                 comp_idx = int(data["price"].company_id[p_idx].item())
@@ -3353,26 +3235,32 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                                 cur_date = range_dates[day_id]
                                 comp_dates = comp_dates_sorted_map.get(comp_name, [])
                                 date_to_pos = comp_date_to_pos.get(comp_name, {})
-                                prev_date = comp_dates[date_to_pos[cur_date] - 1] if cur_date in date_to_pos and date_to_pos[cur_date] >= 1 else cur_date
+                                prev_date = (
+                                    comp_dates[date_to_pos[cur_date] - 1]
+                                    if cur_date in date_to_pos and date_to_pos[cur_date] >= 1
+                                    else cur_date
+                                )
                                 date_str = prev_date
                                 row = idx_map.get((comp_name, date_str), None)
                                 if row is None:
                                     continue
                                 emb_out[p_idx] = emb_cache[row]
-                                if isinstance(is_real_cache, torch.Tensor) and is_real_cache.numel() > 0:
+                                if (
+                                    isinstance(is_real_cache, torch.Tensor)
+                                    and is_real_cache.numel() > 0
+                                ):
                                     is_real_out[p_idx] = is_real_cache[row]
                                 else:
-                                    is_real_out[p_idx] = (emb_cache[row].abs().sum(dim=-1) > 0).float()
+                                    is_real_out[p_idx] = (
+                                        emb_cache[row].abs().sum(dim=-1) > 0
+                                    ).float()
                             data["news_padding"].emb = emb_out
                             data["news_padding"].is_real = is_real_out
-
-                # 已开启「写 emb」但未命中任何缓存实现（路径无效等）：仍挂上 emb 张量，便于在图中可见且与模型接口一致
                 if not hasattr(data["news_padding"], "emb"):
                     data["news_padding"].emb = torch.zeros(
                         (n_price, MAX_NEWS_PER_DAY, emb_dim), dtype=torch.float32
                     )
 
-        # ---------- news_type 节点（与 news 一一对应）+ news -> news_type 边 ----------
         def _encode_base_news_type(t: str) -> int:
             if t is None:
                 return 2
@@ -3394,10 +3282,13 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 date_str = data["news"].date[n_idx]
                 n_type_str = data["news"].type[n_idx]
                 n_id = data["news"].news_id[n_idx]
-
-                base_tid = _encode_base_news_type(n_type_str)  # 0:市场 1:行业 2:个股
+                base_tid = _encode_base_news_type(n_type_str)
                 cluster_tid = -1
-                if base_tid == 2 and comp_name in self.news_clusters and date_str in self.news_clusters[comp_name]:
+                if (
+                    base_tid == 2
+                    and comp_name in self.news_clusters
+                    and (date_str in self.news_clusters[comp_name])
+                ):
                     cluster_dict_all_k = self.news_clusters[comp_name][date_str]
                     if k_str in cluster_dict_all_k:
                         cluster_for_k = cluster_dict_all_k[k_str]
@@ -3405,7 +3296,6 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                             c_label = int(cluster_for_k[n_id])
                             if 0 <= c_label < self.news_cluster_k:
                                 cluster_tid = c_label
-                # Massive / sentiment-as-type：无聚类时用情感占 cluster 槽（virtual_news_type 2..11）
                 if base_tid == 2 and cluster_tid < 0:
                     sl = str(n_type_str or "").lower().strip()
                     _sent_to_c = {
@@ -3419,26 +3309,20 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                     }
                     if sl in _sent_to_c:
                         cluster_tid = int(_sent_to_c[sl])
-
                 news_type_feats.append(torch.tensor([base_tid, cluster_tid], dtype=torch.float32))
-                news_to_type_edges.append([n_idx, n_idx])  # 一一对应
-
+                news_to_type_edges.append([n_idx, n_idx])
         if news_type_feats:
-            data["news_type"].x = torch.stack(news_type_feats, dim=0)  # [N_news, 2]
+            data["news_type"].x = torch.stack(news_type_feats, dim=0)
         else:
             data["news_type"].x = torch.zeros((0, 2), dtype=torch.float32)
-
         if news_to_type_edges:
             data["news", "to", "news_type"].edge_index = torch.tensor(
                 news_to_type_edges, dtype=torch.long
             ).t()
         else:
             data["news", "to", "news_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
-        # ---------- price_type 节点（与 price 一一对应）+ price -> price_type 边 ----------
         price_type_feats = []
         price_to_type_edges = []
-
         if data["price"].x.size(0) > 0 and len(range_dates) > 0:
             for p_idx in range(data["price"].x.size(0)):
                 comp_idx = int(data["price"].company_id[p_idx].item())
@@ -3446,29 +3330,32 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 comp_name = self.companies[comp_idx]
                 target_date = range_dates[day_i]
                 trend_date = self._resolve_trend_date(comp_name, target_date)
-
                 ct = self.cluster_trend.get(comp_name, {}).get(trend_date, {})
-                kmeans_id = int(ct["kmeans_cluster"]) if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None else -1
-                dbscan_id = int(ct["dbscan_cluster"]) if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None else -1
+                kmeans_id = (
+                    int(ct["kmeans_cluster"])
+                    if "kmeans_cluster" in ct and ct["kmeans_cluster"] is not None
+                    else -1
+                )
+                dbscan_id = (
+                    int(ct["dbscan_cluster"])
+                    if "dbscan_cluster" in ct and ct["dbscan_cluster"] is not None
+                    else -1
+                )
                 rt_cn = self.rule_trend.get(comp_name, {}).get(trend_date, None)
                 rule_id = float(rule_trend_cn_to_id(rt_cn))
                 feat = torch.tensor([kmeans_id, dbscan_id, rule_id], dtype=torch.float32)
                 price_type_feats.append(feat)
                 price_to_type_edges.append([p_idx, p_idx])
-
         if price_type_feats:
             data["price_type"].x = torch.stack(price_type_feats, dim=0)
         else:
             data["price_type"].x = torch.zeros((0, 3), dtype=torch.float32)
-
         if price_to_type_edges:
             data["price", "to", "price_type"].edge_index = torch.tensor(
                 price_to_type_edges, dtype=torch.long
             ).t()
         else:
             data["price", "to", "price_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
-        # ---------- industry_type 节点（与 price 一一对应）+ price -> industry_type 边 ----------
         industry_type_feats = []
         price_to_industry_edges = []
         industry_cn_to_id = getattr(self, "_industry_cn_to_id", None) or {}
@@ -3493,9 +3380,6 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             ).t()
         else:
             data["price", "to", "industry_type"].edge_index = torch.zeros((2, 0), dtype=torch.long)
-
-        # ---------- label 节点（与 price 一一对应，不连边） ----------
-        # 存：y_bin / y_org / strong_mask / vol(日成交量涨跌二分类) / raw_line
         label_bin = []
         label_org = []
         label_strong = []
@@ -3509,7 +3393,6 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             comp_name = self.companies[comp_idx]
             cur_date = range_dates[day_i]
             raw_label = self.label.get(comp_name, {}).get(cur_date, None)
-            # raw_line 用原始文件数值（避免 float32 精度损失），与 txt 中完全一致
             comp_dates = comp_dates_sorted_map.get(comp_name, [])
             date_to_pos = comp_date_to_pos.get(comp_name, {})
             prev_date = None
@@ -3535,32 +3418,30 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             except Exception:
                 y = 0.0
             y_bin = 1.0 if y > 0.0 else 0.0
-            is_strong = 1.0 if (y > 0.0055 or y < -0.005) else 0.0
+            is_strong = 1.0 if y > 0.0055 or y < -0.005 else 0.0
             label_org.append(y)
             label_bin.append(y_bin)
             label_strong.append(is_strong)
-            vb, vo, vv = _vol_change_from_map(
-                getattr(self, "volume", None) or {},
-                comp_name,
-                cur_date,
-                prev_date,
+            (vb, vo, vv) = _vol_change_from_map(
+                getattr(self, "volume", None) or {}, comp_name, cur_date, prev_date
             )
             vol_bin.append(vb)
             vol_org.append(vo)
             vol_valid.append(vv)
-
         data["price"].raw_line = price_raw_line
         if label_bin:
-            data["label"].x = torch.tensor(label_bin, dtype=torch.float32).view(-1, 1)   # 二分类标签
-            data["label"].org = torch.tensor(label_org, dtype=torch.float32).view(-1, 1)  # 原始收益
-            data["label"].strong_mask = torch.tensor(label_strong, dtype=torch.bool).view(-1, 1)  # 大波动样本
+            data["label"].x = torch.tensor(label_bin, dtype=torch.float32).view(-1, 1)
+            data["label"].org = torch.tensor(label_org, dtype=torch.float32).view(-1, 1)
+            data["label"].strong_mask = torch.tensor(label_strong, dtype=torch.bool).view(-1, 1)
             data["label"].vol_x = torch.tensor(vol_bin, dtype=torch.float32).view(-1, 1)
             data["label"].vol_org = torch.tensor(vol_org, dtype=torch.float32).view(-1, 1)
             data["label"].vol_valid_mask = torch.tensor(vol_valid, dtype=torch.bool).view(-1, 1)
             if hasattr(data["price"], "valid_mask"):
                 data["label"].valid_mask = data["price"].valid_mask.clone()
             else:
-                data["label"].valid_mask = torch.ones_like(data["label"].strong_mask, dtype=torch.bool)
+                data["label"].valid_mask = torch.ones_like(
+                    data["label"].strong_mask, dtype=torch.bool
+                )
         else:
             data["label"].x = torch.zeros((0, 1), dtype=torch.float32)
             data["label"].org = torch.zeros((0, 1), dtype=torch.float32)
@@ -3569,13 +3450,9 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             data["label"].vol_x = torch.zeros((0, 1), dtype=torch.float32)
             data["label"].vol_org = torch.zeros((0, 1), dtype=torch.float32)
             data["label"].vol_valid_mask = torch.zeros((0, 1), dtype=torch.bool)
-
-        # ---------- 虚拟节点 ----------
         num_comp = len(self.companies)
         num_seg = len(range_dates)
         n_price = data["price"].x.size(0)
-
-        # 1) 虚拟窗口节点 virtual_window：本段实际天数 num_seg（最多 num_virtual_window），day_id 直接对齐
         vw_cap = max(1, int(self.num_virtual_window))
         vw_num = min(vw_cap, num_seg)
         data["virtual_window"].x = torch.zeros((vw_num, 1), dtype=torch.float32)
@@ -3591,14 +3468,14 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 vw_edges_news.append([n_idx, day_id])
         data["price", "to", "virtual_window"].edge_index = (
             torch.tensor(vw_edges_price, dtype=torch.long).t()
-            if vw_edges_price else torch.zeros((2, 0), dtype=torch.long)
+            if vw_edges_price
+            else torch.zeros((2, 0), dtype=torch.long)
         )
         data["news", "to", "virtual_window"].edge_index = (
             torch.tensor(vw_edges_news, dtype=torch.long).t()
-            if vw_edges_news else torch.zeros((2, 0), dtype=torch.long)
+            if vw_edges_news
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 1b) virtual_news：个数与 price 相同，一一对应；news 按 (company_id, day_id) 连到对应 price 的 virtual_news
         vn_num = n_price
         data["virtual_news"].x = torch.zeros((vn_num, 1), dtype=torch.float32)
         p_to_vn = [[p_idx, p_idx] for p_idx in range(n_price)]
@@ -3606,7 +3483,7 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
         for p_idx in range(n_price):
             comp_idx = int(data["price"].company_id[p_idx].item())
             day_id = int(data["price"].day_id[p_idx].item())
-            key2pidx[(comp_idx, day_id)] = p_idx
+            key2pidx[comp_idx, day_id] = p_idx
         n_to_vn = []
         for n_idx in range(data["news"].x.size(0)):
             comp_idx = int(data["news"].company_id[n_idx].item())
@@ -3614,14 +3491,12 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
             p_idx = key2pidx.get((comp_idx, day_id))
             if p_idx is not None:
                 n_to_vn.append([n_idx, p_idx])
-        # 按需求：virtual_news 与 price 不连边，只保证个数一一对应
         data["price", "to", "virtual_news"].edge_index = torch.zeros((2, 0), dtype=torch.long)
         data["news", "to", "virtual_news"].edge_index = (
             torch.tensor(n_to_vn, dtype=torch.long).t()
-            if n_to_vn else torch.zeros((2, 0), dtype=torch.long)
+            if n_to_vn
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 2) virtual_news_type：12 种（global/market=1, industry=1, individual 聚类 10 种）
         NUM_NEWS_TYPE = 12
         data["virtual_news_type"].x = torch.zeros((NUM_NEWS_TYPE, 1), dtype=torch.float32)
         news_type_to_vnt = []
@@ -3639,18 +3514,29 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 news_type_to_vnt.append([t_idx, vnt_idx])
         data["news_type", "to", "virtual_news_type"].edge_index = (
             torch.tensor(news_type_to_vnt, dtype=torch.long).t()
-            if news_type_to_vnt else torch.zeros((2, 0), dtype=torch.long)
+            if news_type_to_vnt
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 3) virtual_price_type：固定 10 种（来源可选：rule / kmeans / dbscan / mix，与 CSMD 一致）
         NUM_PRICE_TYPE = 10
         data["virtual_price_type"].x = torch.zeros((NUM_PRICE_TYPE, 1), dtype=torch.float32)
         price_type_to_vpt = []
         if data["price_type"].x.size(0) > 0:
             for t_idx in range(data["price_type"].x.size(0)):
-                kmeans_id = int(data["price_type"].x[t_idx, 0].item()) if data["price_type"].x[t_idx, 0].item() >= 0 else 0
-                dbscan_id = int(data["price_type"].x[t_idx, 1].item()) if data["price_type"].x[t_idx, 1].item() >= 0 else 0
-                rule_id = int(data["price_type"].x[t_idx, 2].item()) if data["price_type"].x[t_idx, 2].item() >= 0 else 0
+                kmeans_id = (
+                    int(data["price_type"].x[t_idx, 0].item())
+                    if data["price_type"].x[t_idx, 0].item() >= 0
+                    else 0
+                )
+                dbscan_id = (
+                    int(data["price_type"].x[t_idx, 1].item())
+                    if data["price_type"].x[t_idx, 1].item() >= 0
+                    else 0
+                )
+                rule_id = (
+                    int(data["price_type"].x[t_idx, 2].item())
+                    if data["price_type"].x[t_idx, 2].item() >= 0
+                    else 0
+                )
                 src = self.price_type_source
                 if src == "kmeans":
                     src_id = kmeans_id
@@ -3664,15 +3550,14 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 price_type_to_vpt.append([t_idx, vpt_idx])
         data["price_type", "to", "virtual_price_type"].edge_index = (
             torch.tensor(price_type_to_vpt, dtype=torch.long).t()
-            if price_type_to_vpt else torch.zeros((2, 0), dtype=torch.long)
+            if price_type_to_vpt
+            else torch.zeros((2, 0), dtype=torch.long)
         )
         data["virtual_price_type", "to", "price_type"].edge_index = (
             data["price_type", "to", "virtual_price_type"].edge_index.flip(0)
-            if price_type_to_vpt else torch.zeros((2, 0), dtype=torch.long)
+            if price_type_to_vpt
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
-        # 4) virtual_industry：num_industries * num_days，按 (day_id, industry_id) 索引
-        # 每天每个行业一个虚拟结点，用于行业级聚合与消息传递
         num_days_seg = len(range_dates)
         NUM_VIRTUAL_INDUSTRY = num_industries * num_days_seg
         data["virtual_industry"].x = torch.zeros((NUM_VIRTUAL_INDUSTRY, 1), dtype=torch.float32)
@@ -3687,22 +3572,23 @@ class _CMINBuilderDataset(torch.utils.data.Dataset):
                 industry_type_to_vi.append([t_idx, vi_idx])
         data["industry_type", "to", "virtual_industry"].edge_index = (
             torch.tensor(industry_type_to_vi, dtype=torch.long).t()
-            if industry_type_to_vi else torch.zeros((2, 0), dtype=torch.long)
+            if industry_type_to_vi
+            else torch.zeros((2, 0), dtype=torch.long)
         )
         data["virtual_industry", "to", "industry_type"].edge_index = (
             data["industry_type", "to", "virtual_industry"].edge_index.flip(0)
-            if industry_type_to_vi else torch.zeros((2, 0), dtype=torch.long)
+            if industry_type_to_vi
+            else torch.zeros((2, 0), dtype=torch.long)
         )
-
         data["range_dates"] = range_dates
         return buffer_to_window_sample(data)
 
+
 class _CMINUSBuilderDataset(_CMINBuilderDataset):
+
     def _load_all_data(self, root):
-        # massive_data 与 CMIN-US 同布局（新闻 CSV + news_type；无 Wind 过滤）
         return load_cmin_us_all_data(
-            root,
-            news_type_subdir=getattr(self, "news_type_subdir", "news_type"),
+            root, news_type_subdir=getattr(self, "news_type_subdir", "news_type")
         )
 
     def __init__(self, *args, **kwargs):
@@ -3710,9 +3596,9 @@ class _CMINUSBuilderDataset(_CMINBuilderDataset):
         self.seg_keep_tail = True
         self._rebuild_seg_windows()
 
-# --- 统一入口 ---
 
 class MarketWindowDataset(torch.utils.data.Dataset):
+
     def __init__(self, profile: DatasetProfile | str, mode: str = "train", **kwargs):
         self.profile = get_profile(profile) if isinstance(profile, str) else profile
         p = self.profile
@@ -3729,27 +3615,40 @@ class MarketWindowDataset(torch.utils.data.Dataset):
             news_padding_emb_cache_path=kwargs.get("news_padding_emb_cache_path"),
             skip_finbert_tokenizer=kwargs.get("skip_finbert_tokenizer", True),
             vocab_path=kwargs.get("vocab_path", p.vocab_path),
+            finbert_model_path=kwargs.get("finbert_model_path"),
         )
         _split_mode = str(kwargs.get("split_mode", "contiguous") or "contiguous").strip().lower()
         _purge = bool(kwargs.get("train_lookback_purge", True))
-        if p.key == "massive":
+        if p.key in ("cmin_cn", "cmin_us", "massive", "stocknet"):
             common["seg_keep_tail"] = kwargs.get("seg_keep_tail", p.seg_keep_tail)
             common["news_type_subdir"] = kwargs.get("news_type_subdir", "news_type")
             common["split_dates"] = dict(kwargs.get("split_dates") or p.split_dates)
             common["split_mode"] = _split_mode
             common["train_lookback_purge"] = _purge
+        if p.key == "cmin_cn":
+            common["require_wind_news_source"] = bool(kwargs.get("require_wind_news_source", True))
+            common["require_window_news"] = bool(kwargs.get("require_window_news", False))
+            common["subset_top_companies"] = int(kwargs.get("subset_top_companies", 0) or 0)
+            _wl = kwargs.get("companies_whitelist")
+            if _wl:
+                common["companies_whitelist"] = list(_wl)
+            self._inner = _CMINBuilderDataset(**common)
+        elif p.key in ("cmin_us", "massive", "stocknet"):
             self._inner = _CMINUSBuilderDataset(**common)
-        elif p.key in ("csmd50", "csmd300"):
+        elif p.key in ("csmd50", "csmd300", "sse50"):
             common["news_type_subdir"] = kwargs.get("news_type_subdir", "news_type")
-            common["csmd_news_source"] = str(
-                kwargs.get("csmd_news_source", "raw") or "raw"
-            ).strip().lower()
+            common["csmd_news_source"] = (
+                str(kwargs.get("csmd_news_source", "llm_extract") or "llm_extract").strip().lower()
+            )
             common["split_dates"] = dict(kwargs.get("split_dates") or p.split_dates)
             common["split_mode"] = _split_mode
             common["train_lookback_purge"] = _purge
+            _ip = str(kwargs.get("news_impact_oracle_path", "") or "").strip()
+            if _ip:
+                common["news_impact_oracle_path"] = _ip
             self._inner = _CSMDBuilderDataset(**common)
         else:
-            raise KeyError(f"unsupported dataset {p.key!r}; paper path: csmd50|csmd300|massive")
+            raise KeyError(p.key)
 
     def __len__(self):
         return len(self._inner)
@@ -3757,17 +3656,127 @@ class MarketWindowDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self._inner[idx]
 
-# ===== constants (依赖 classes) =====
-
-# --- config ---
 
 _PROFILES: dict[str, DatasetProfile] = {
+    "cmin_cn": DatasetProfile(
+        key="cmin_cn",
+        description="CMIN-CN 中文 300 股",
+        default_root=os.path.join(_PATTERN_ROOT, "data", "CMIN-CN"),
+        vocab_path=os.path.join(DICT_DIR, "dict_cn.pkl"),
+        grid_num_stocks=300,
+        num_score_news_types=12,
+        num_industry=27,
+        num_rule_trend=8,
+        price_window=5,
+        seg_length=10,
+        seg_keep_tail=False,
+        num_virtual_window=10,
+        split_dates={
+            "train_start": "2018-01-01",
+            "train_end": "2021-04-30",
+            "val_start": "2021-05-01",
+            "val_end": "2021-08-31",
+            "test_start": "2021-09-01",
+            "test_end": "2021-12-31",
+        },
+        pattern_subdir="CMIN-CN",
+        include_calendar_frac=True,
+        include_industry=True,
+        include_rule_trend_node=False,
+        news_subtype=False,
+        virtual_news_type_count=12,
+    ),
+    "cmin_us": DatasetProfile(
+        key="cmin_us",
+        description="CMIN-US 英文 ~110 股",
+        default_root=os.path.join(_PATTERN_ROOT, "data", "CMIN-US"),
+        vocab_path=os.path.join(DICT_DIR, "dict_us.pkl"),
+        grid_num_stocks=110,
+        num_score_news_types=12,
+        num_industry=27,
+        num_rule_trend=8,
+        price_window=5,
+        seg_length=10,
+        seg_keep_tail=True,
+        num_virtual_window=10,
+        split_dates={
+            "train_start": "2018-01-01",
+            "train_end": "2021-04-30",
+            "val_start": "2021-05-01",
+            "val_end": "2021-08-31",
+            "test_start": "2021-09-01",
+            "test_end": "2021-12-31",
+        },
+        pattern_subdir="CMIN-US",
+        include_calendar_frac=True,
+        include_industry=True,
+        include_rule_trend_node=False,
+        news_subtype=False,
+        virtual_news_type_count=12,
+    ),
+    "massive": DatasetProfile(
+        key="massive",
+        description="Massive.com StockTable ~88 US stocks (2022-2025, with news sentiment)",
+        default_root=os.path.join(_PATTERN_ROOT, "data", "massive_data"),
+        vocab_path=os.path.join(DICT_DIR, "dict_massive.pkl"),
+        grid_num_stocks=88,
+        num_score_news_types=12,
+        num_industry=27,
+        num_rule_trend=8,
+        price_window=5,
+        seg_length=10,
+        seg_keep_tail=True,
+        num_virtual_window=10,
+        split_dates={
+            "train_start": "2022-01-01",
+            "train_end": "2023-12-31",
+            "val_start": "2024-01-01",
+            "val_end": "2024-12-31",
+            "test_start": "2025-01-01",
+            "test_end": "2025-12-31",
+        },
+        pattern_subdir="massive_data",
+        include_calendar_frac=True,
+        include_industry=True,
+        include_rule_trend_node=False,
+        news_subtype=False,
+        virtual_news_type_count=12,
+    ),
+    "stocknet": DatasetProfile(
+        key="stocknet",
+        description="StockNet ACL18 88 stocks (tweets 2014-2015; StockNet 9 sectors)",
+        default_root="data/stocknet",
+        vocab_path="dict/dict_stocknet.pkl",
+        grid_num_stocks=88,
+        num_score_news_types=12,
+        num_industry=27,
+        num_rule_trend=8,
+        price_window=5,
+        seg_length=10,
+        seg_keep_tail=True,
+        num_virtual_window=10,
+        split_dates={
+            "train_start": "2014-01-01",
+            "train_end": "2015-06-30",
+            "val_start": "2015-07-01",
+            "val_end": "2015-09-30",
+            "test_start": "2015-10-01",
+            "test_end": "2015-12-31",
+        },
+        pattern_subdir="stocknet",
+        include_calendar_frac=True,
+        include_industry=True,
+        include_rule_trend_node=False,
+        news_subtype=False,
+        virtual_news_type_count=12,
+    ),
     "csmd50": DatasetProfile(
         key="csmd50",
         description="CSMD 50 股",
-        default_root=os.path.join(_MTVC_ROOT, "data", "CSMD50"),
+        default_root=os.path.join(_PATTERN_ROOT, "data", "CSMD50"),
         vocab_path=os.path.join(DICT_DIR, "dict_csmd.pkl"),
         grid_num_stocks=50,
+        num_score_news_types=13,
         num_industry=27,
         num_rule_trend=8,
         price_window=5,
@@ -3792,9 +3801,10 @@ _PROFILES: dict[str, DatasetProfile] = {
     "csmd300": DatasetProfile(
         key="csmd300",
         description="CSMD 300 股",
-        default_root=os.path.join(_MTVC_ROOT, "data", "CSMD300"),
+        default_root=os.path.join(_PATTERN_ROOT, "data", "CSMD300"),
         vocab_path=os.path.join(DICT_DIR, "dict_csmd.pkl"),
         grid_num_stocks=300,
+        num_score_news_types=13,
         num_industry=27,
         num_rule_trend=8,
         price_window=5,
@@ -3816,12 +3826,13 @@ _PROFILES: dict[str, DatasetProfile] = {
         news_subtype=True,
         virtual_news_type_count=13,
     ),
-    "massive": DatasetProfile(
-        key="massive",
-        description="Massive.com StockTable ~88 US stocks (2022-2025, with news sentiment)",
-        default_root=os.path.join(_MTVC_ROOT, "data", "massive_data"),
-        vocab_path=os.path.join(DICT_DIR, "dict_massive.pkl"),
-        grid_num_stocks=88,
+    "sse50": DatasetProfile(
+        key="sse50",
+        description="SSE50 from news_weibo (Tushare news + Sina prices, 2022-2025)",
+        default_root="data/sse50_news",
+        vocab_path="dict/dict_sse50.pkl",
+        grid_num_stocks=48,
+        num_score_news_types=13,
         num_industry=27,
         num_rule_trend=8,
         price_window=5,
@@ -3831,39 +3842,34 @@ _PROFILES: dict[str, DatasetProfile] = {
         split_dates={
             "train_start": "2022-01-01",
             "train_end": "2023-12-31",
-            "val_start": "2024-01-01",
+            "val_start": "2024-01-02",
             "val_end": "2024-12-31",
-            "test_start": "2025-01-01",
+            "test_start": "2025-01-02",
             "test_end": "2025-12-31",
         },
-        pattern_subdir="massive_data",
-        include_calendar_frac=True,
+        pattern_subdir="sse50_news",
+        include_calendar_frac=False,
         include_industry=True,
-        include_rule_trend_node=False,
-        news_subtype=False,
-        virtual_news_type_count=12,
+        include_rule_trend_node=True,
+        news_subtype=True,
+        virtual_news_type_count=13,
     ),
 }
-
-# --- legacy bridge ---
-
-_DIR = os.path.dirname(os.path.abspath(__file__))  # legacy bridge
-
+_DIR = os.path.dirname(os.path.abspath(__file__))
 LEGACY_SCRIPT = {
+    "cmin_cn": "main_cmin_cn.py",
+    "cmin_us": "main_cmin_us.py",
     "csmd50": "main_csmd_50.py",
     "csmd300": "main_csmd_300.py",
 }
-
 _LEGACY_DATASET_CLASSES = {
+    "CMIN_CN_Dataset": "cmin_cn",
+    "CMIN_US_Dataset": "cmin_us",
     "CSMD_50_Dataset": "csmd50",
     "CSMD_300_Dataset": "csmd300",
 }
-
 _INJECT_MARKER = "# --- unified legacy bridge ---"
 
-# ===== functions =====
-
-# --- config ---
 
 def get_profile(key: str) -> DatasetProfile:
     k = key.strip().lower()
@@ -3871,9 +3877,6 @@ def get_profile(key: str) -> DatasetProfile:
         raise KeyError(f"unknown dataset {key!r}, choose from {list(_PROFILES)}")
     return _PROFILES[k]
 
-# --- data_io ---
-
-# --- 通用：价格 / 行业 / 映射 ---
 
 def load_price(directory_path):
     """
@@ -3885,17 +3888,17 @@ def load_price(directory_path):
     label = {}
     raw_line = {}
     volume = {}
-    for filename in os.listdir(directory_path):
-        if filename.endswith('.txt'):
+    for filename in _list_input_directory(directory_path):
+        if filename.endswith(".txt"):
             company_name = filename.replace(".txt", "")
             file_path = os.path.join(directory_path, filename)
             stock_data[company_name] = {}
             label[company_name] = {}
             raw_line[company_name] = {}
             volume[company_name] = {}
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 for line in f:
-                    parts = line.strip().split('\t')
+                    parts = line.strip().split("\t")
                     if len(parts) < 6:
                         continue
                     time = parts[0]
@@ -3907,200 +3910,148 @@ def load_price(directory_path):
                         volume[company_name][time] = float(parts[6]) if len(parts) >= 7 else 0.0
                     except Exception:
                         volume[company_name][time] = 0.0
-    return stock_data, label, raw_line, volume
+    return (stock_data, label, raw_line, volume)
 
 
 def _vol_change_from_map(
-    volume_map: dict,
-    comp_name: str,
-    cur_date: str,
-    prev_date: str | None,
+    volume_map: dict, comp_name: str, cur_date: str, prev_date: str | None
 ) -> tuple[float, float, bool]:
-    """
-    目标日 d 相对前一交易日的成交量变化：
-      org = vol_d / vol_{d-1} - 1
-      bin = 1 if org > 0 else 0
-    缺数或非正成交量 → valid=False。
-    """
+    """Vol change from map."""
     if not prev_date:
-        return 0.0, 0.0, False
+        return (0.0, 0.0, False)
     by_d = volume_map.get(comp_name, {}) if volume_map else {}
     try:
         v_cur = float(by_d.get(cur_date, 0.0) or 0.0)
         v_prev = float(by_d.get(prev_date, 0.0) or 0.0)
     except Exception:
-        return 0.0, 0.0, False
+        return (0.0, 0.0, False)
     if v_cur <= 0.0 or v_prev <= 0.0:
-        return 0.0, 0.0, False
+        return (0.0, 0.0, False)
     org = v_cur / v_prev - 1.0
-    return (1.0 if org > 0.0 else 0.0), float(org), True
+    return (1.0 if org > 0.0 else 0.0, float(org), True)
 
 
 def _vol_return_seq_for_dates(
-    volume_map: dict,
-    comp_name: str,
-    dates: list,
-    all_dates_sorted: list,
-    date_to_pos: dict,
+    volume_map: dict, comp_name: str, dates: list, all_dates_sorted: list, date_to_pos: dict
 ) -> list[list[float]]:
-    """Lookback 窗内每日成交量相对前一交易日变化，与股价窗日期对齐、独立成列。"""
+    """Vol return seq for dates."""
     out: list[list[float]] = []
     for dd in dates:
         pos = date_to_pos.get(dd)
         prev_d = all_dates_sorted[pos - 1] if isinstance(pos, int) and pos > 0 else None
-        _bin, org, valid = _vol_change_from_map(volume_map, comp_name, str(dd), prev_d)
+        (_bin, org, valid) = _vol_change_from_map(volume_map, comp_name, str(dd), prev_d)
         out.append([float(org) if valid else 0.0])
     return out
 
+
 def _day_of_year_frac(date_str: str) -> float:
-    """
-    计算某日期在当年中的小数位置：第 n 天 -> n/days_in_year。
-    考虑闰年：平年 365 天，闰年 366 天。
-    """
+    """Day of year frac."""
     try:
         d = datetime.strptime(str(date_str), "%Y-%m-%d")
     except Exception:
         return 0.0
     start = datetime(d.year, 1, 1)
-    doy = (d - start).days + 1  # 1-indexed
+    doy = (d - start).days + 1
     days_in_year = 366 if calendar.isleap(d.year) else 365
     return float(doy) / float(days_in_year)
 
+
 def load_industry_info(csv_path):
-    """
-    读取 comp_indus.csv 中的公司行业信息。
-    返回: {stock_name: {"industry_cn": 行业中文, "industry_en": 行业英文}}
-    """
+    """Load industry info."""
     industry_map = {}
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
-        next(reader, None)  # 跳过表头
+        next(reader, None)
         for row in reader:
             if len(row) < 3:
                 continue
-            stock_name, industry_cn, industry_en = row[0], row[1], row[2]
-            industry_map[stock_name] = {
-                "industry_cn": industry_cn,
-                "industry_en": industry_en
-            }
+            (stock_name, industry_cn, industry_en) = (row[0], row[1], row[2])
+            industry_map[stock_name] = {"industry_cn": industry_cn, "industry_en": industry_en}
     return industry_map
 
+
 def load_industry_dict(pkl_path: str | None = None):
-    """
-    加载统一行业字典（由 dict/build_industry_dict.py 从 CMIN-CN/US/CSMD300 构建）。
-    返回: dict with industry_cn_to_id, industry_en_to_id, id_to_industry_cn, id_to_industry_en, num_industries
-    """
+    """Load industry dict."""
     if pkl_path is None:
         pkl_path = os.path.join(DICT_DIR, "industry_dict.pkl")
-    elif not os.path.isabs(pkl_path) and not os.path.isfile(pkl_path):
+    elif not os.path.isabs(pkl_path) and (not os.path.isfile(pkl_path)):
         pkl_path = os.path.join(DICT_DIR, os.path.basename(pkl_path))
     if not os.path.isfile(pkl_path):
         return None
     with open(pkl_path, "rb") as f:
         return pickle.load(f)
 
+
 def load_code_name_mapping(json_path):
-    """
-    读取 code_name.json，返回:
-    - code_to_name: {"000001.sz": "平安银行", ...}
-    - name_to_code: {"平安银行": "000001.sz", ...}
-    """
+    """Load code name mapping."""
     with open(json_path, "r", encoding="utf-8") as f:
         code_to_name = json.load(f)
-    name_to_code = {v: k for k, v in code_to_name.items()}
-    return code_to_name, name_to_code
+    name_to_code = {v: k for (k, v) in code_to_name.items()}
+    return (code_to_name, name_to_code)
+
 
 def _csv_row_source_contains_wind(row: list) -> bool:
-    """新闻 CSV 第 5 列为来源时，仅当来源字符串包含 'wind'（大小写不敏感）为 True。无来源列则 False。"""
-    # return True
+    """Csv row source contains wind."""
     if len(row) < 5:
         return False
     return "wind" in str(row[4]).lower()
 
+
 def load_news_and_types(news_dir, news_type_dir, *, require_wind_source: bool = True):
-    """
-    读取所有新闻数据和对应的新闻类型数据。
-    - news_dir: /dataset/CMIN-CN/news
-    - news_type_dir: /dataset/CMIN-CN/llm_extract/news_type
-
-    require_wind_source=True（CMIN-CN 默认）：仅加载来源列（CSV 第 5 列）包含 Wind 的新闻行。
-    require_wind_source=False（CMIN-US）：加载全部有效行（与 main_cmin_us.py 一致）。
-
-    返回:
-    - news_texts[company][date][news_id] = 文本
-    - news_types[company][date][news_id] = 类型
-    """
+    """Load news and types."""
     news_texts = defaultdict(lambda: defaultdict(dict))
     news_types = defaultdict(lambda: defaultdict(dict))
-
     company_list = [
-        d for d in os.listdir(news_dir)
-        if os.path.isdir(os.path.join(news_dir, d))
+        d for d in _list_input_directory(news_dir) if os.path.isdir(os.path.join(news_dir, d))
     ]
-
     for company in company_list:
         type_dir = os.path.join(news_type_dir, company)
         company_news_dir = os.path.join(news_dir, company)
         if not os.path.exists(type_dir) or not os.path.exists(company_news_dir):
             continue
-
-        for file_name in os.listdir(type_dir):
+        for file_name in _list_input_directory(type_dir):
             if not file_name.endswith(".json"):
                 continue
             date_str = file_name.replace(".json", "")
-
             type_path = os.path.join(type_dir, file_name)
             news_path = os.path.join(company_news_dir, f"{date_str}.csv")
             if not os.path.exists(news_path):
                 continue
-
-            # 读新闻类型
             try:
                 with open(type_path, "r", encoding="utf-8") as f:
                     type_dict = json.load(f)
             except Exception:
                 continue
-
-            # 读新闻文本，按行号建立 id -> text 映射（仅保留来源含 Wind 的行）
             id_to_text = {}
             try:
                 with open(news_path, "r", encoding="utf-8") as f:
                     reader = csv.reader(f)
-                    next(reader, None)  # 跳过表头
+                    next(reader, None)
                     for idx, row in enumerate(reader):
                         if len(row) < 4:
                             continue
-                        if require_wind_source and not _csv_row_source_contains_wind(row):
+                        if require_wind_source and (not _csv_row_source_contains_wind(row)):
                             continue
                         id_to_text[str(idx)] = row[3]
             except Exception:
                 continue
-
-            # 对齐新闻 id，保存文本和类型
             for news_id, news_type in type_dict.items():
                 if news_id in id_to_text:
                     news_texts[company][date_str][news_id] = id_to_text[news_id]
                     news_types[company][date_str][news_id] = news_type
+    return (news_texts, news_types)
 
-    return news_texts, news_types
 
 def load_news_clusters(news_cluster_root):
-    """
-    读取所有个股新闻的聚类类型数据 (pattern/news_cluster)。
-    返回:
-    - news_clusters[company][date] = {cluster_k: {news_id: cluster_label, ...}, ...}
-    """
+    """Load news clusters."""
     news_clusters = defaultdict(lambda: defaultdict(dict))
-
     if not os.path.exists(news_cluster_root):
         return news_clusters
-
-    for company in os.listdir(news_cluster_root):
+    for company in _list_input_directory(news_cluster_root):
         company_dir = os.path.join(news_cluster_root, company)
         if not os.path.isdir(company_dir):
             continue
-
-        for file_name in os.listdir(company_dir):
+        for file_name in _list_input_directory(company_dir):
             if not file_name.endswith(".json"):
                 continue
             date_str = file_name.replace(".json", "")
@@ -4111,28 +4062,21 @@ def load_news_clusters(news_cluster_root):
                 news_clusters[company][date_str] = data
             except Exception:
                 continue
-
     return news_clusters
 
-def load_cluster_trend(cluster_trend_dir, code_to_name):
-    """
-    读取 pattern/cluster_trend 里的聚类趋势数据 (最后两列 kmeans_cluster, dbscan_cluster)。
-    返回:
-    - cluster_trend[stock_name][date] = {"kmeans_cluster": int 或 None, "dbscan_cluster": int 或 None}
-    """
-    cluster_trend = defaultdict(dict)
 
+def load_cluster_trend(cluster_trend_dir, code_to_name):
+    """Load cluster trend."""
+    cluster_trend = defaultdict(dict)
     if not os.path.exists(cluster_trend_dir):
         return cluster_trend
-
-    for filename in os.listdir(cluster_trend_dir):
+    for filename in _list_input_directory(cluster_trend_dir):
         if not filename.endswith(".csv"):
             continue
         code = filename.replace(".csv", "")
         stock_name = code_to_name.get(code)
         if stock_name is None:
             continue
-
         file_path = os.path.join(cluster_trend_dir, filename)
         with open(file_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -4155,28 +4099,21 @@ def load_cluster_trend(cluster_trend_dir, code_to_name):
                     "kmeans_cluster": _to_int(kmeans_raw),
                     "dbscan_cluster": _to_int(dbscan_raw),
                 }
-
     return cluster_trend
 
-def load_rule_trend(trend_dir, code_to_name):
-    """
-    读取 pattern/trend 里的规则趋势数据，取 main_trend_cn 列。
-    返回:
-    - rule_trend[stock_name][date] = main_trend_cn (字符串)
-    """
-    rule_trend = defaultdict(dict)
 
+def load_rule_trend(trend_dir, code_to_name):
+    """Load rule trend."""
+    rule_trend = defaultdict(dict)
     if not os.path.exists(trend_dir):
         return rule_trend
-
-    for filename in os.listdir(trend_dir):
+    for filename in _list_input_directory(trend_dir):
         if not filename.endswith(".csv"):
             continue
         code = filename.replace(".csv", "")
         stock_name = code_to_name.get(code)
         if stock_name is None:
             continue
-
         file_path = os.path.join(trend_dir, filename)
         with open(file_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -4186,32 +4123,13 @@ def load_rule_trend(trend_dir, code_to_name):
                     continue
                 main_trend_cn = row.get("main_trend_cn", "").strip()
                 rule_trend[stock_name][date] = main_trend_cn
-
     return rule_trend
 
-# --- CMIN 数据聚合 ---
 
 def load_cmin_cn_all_data(
-    dataset_root,
-    news_type_subdir: str = "news_type",
-    *,
-    require_wind_news_source: bool = True,
+    dataset_root, news_type_subdir: str = "news_type", *, require_wind_news_source: bool = True
 ):
-    """
-    一次性读取 CMIN-CN 相关的所有数据:
-    - 股价数据 (price/preprocessed)
-    - 新闻数据 (news)
-    - 新闻类型数据 (llm_extract/<news_type_subdir>)
-    - 个股新闻聚类结果 (pattern/news_cluster)
-    - 聚类趋势数据 (pattern/cluster_trend, 最后两列)
-    - 规则趋势数据 (pattern/trend, main_trend_cn 列)
-    - 公司行业数据 (comp_industry/comp_indus.csv)
-
-    require_wind_news_source=True（默认）：仅 Wind 来源新闻；
-    False：加载全部有效新闻行（全量）。
-
-    返回一个字典，后续可用于构图/特征构造，而不需要把不同模态简单拼成一个大向量。
-    """
+    """Load cmin cn all data."""
     return _load_cmin_common_data(
         dataset_root,
         require_wind_news_source=bool(require_wind_news_source),
@@ -4220,23 +4138,21 @@ def load_cmin_cn_all_data(
 
 
 def load_cmin_us_all_data(dataset_root, news_type_subdir: str = "news_type"):
-    """CMIN-US：新闻 CSV 无 Wind 来源列，加载全部有效行（对齐 main_cmin_us.py）。"""
+    """Load cmin us all data."""
     return _load_cmin_common_data(
-        dataset_root,
-        require_wind_news_source=False,
-        news_type_subdir=news_type_subdir,
+        dataset_root, require_wind_news_source=False, news_type_subdir=news_type_subdir
     )
 
 
 def _cmin_news_type_json_has_embedded_content(news_type_dir: str) -> bool:
-    """检测 llm_extract 子目录是否已嵌入正文（波及构建产物）。"""
+    """Cmin news type json has embedded content."""
     if not os.path.isdir(news_type_dir):
         return False
-    for company in os.listdir(news_type_dir):
+    for company in _list_input_directory(news_type_dir):
         cdir = os.path.join(news_type_dir, company)
         if not os.path.isdir(cdir):
             continue
-        for fn in os.listdir(cdir):
+        for fn in _list_input_directory(cdir):
             if not fn.endswith(".json") or fn.startswith("_"):
                 continue
             try:
@@ -4252,28 +4168,19 @@ def _cmin_news_type_json_has_embedded_content(news_type_dir: str) -> bool:
 
 
 def _load_cmin_common_data(
-    dataset_root,
-    *,
-    require_wind_news_source: bool,
-    news_type_subdir: str = "news_type",
+    dataset_root, *, require_wind_news_source: bool, news_type_subdir: str = "news_type"
 ):
-    # 股价与标签（含原始行用于 label 校验）
     price_dir = os.path.join(dataset_root, "price", "preprocessed")
-    stock_data, label, raw_line, volume = load_price(price_dir)
-
-    # 新闻与新闻类型
+    (stock_data, label, raw_line, volume) = load_price(price_dir)
     news_dir = os.path.join(dataset_root, "news")
     sub = str(news_type_subdir or "news_type").strip() or "news_type"
     news_type_dir = os.path.join(dataset_root, "llm_extract", sub)
     if _cmin_news_type_json_has_embedded_content(news_type_dir):
-        # 波及目录：正文已写进 JSON（含 p_i| / p_m|），按 CSMD 方式直接读
-        news_texts, news_types = load_news_and_types_from_llm_extract(news_type_dir)
+        (news_texts, news_types) = load_news_and_types_from_llm_extract(news_type_dir)
     else:
-        news_texts, news_types = load_news_and_types(
+        (news_texts, news_types) = load_news_and_types(
             news_dir, news_type_dir, require_wind_source=require_wind_news_source
         )
-
-    # 个股新闻聚类（优先 pattern/CMIN-CN，与 cluster_news_cmin 输出一致）
     pattern_root = "./pattern"
     ds_name = os.path.basename(os.path.normpath(dataset_root))
     pattern_dir = os.path.join(pattern_root, ds_name)
@@ -4281,31 +4188,22 @@ def _load_cmin_common_data(
     if not os.path.exists(news_cluster_root):
         news_cluster_root = os.path.join(dataset_root, "pattern", "news_cluster")
     news_clusters = load_news_clusters(news_cluster_root)
-
-    # 代码 ↔ 名称（与 US 一致：可无 code_name.json，缺省为股票键自身映射）
     code_name_path = os.path.join(dataset_root, "code_name.json")
     if os.path.exists(code_name_path):
-        code_to_name, name_to_code = load_code_name_mapping(code_name_path)
+        (code_to_name, name_to_code) = load_code_name_mapping(code_name_path)
     else:
         code_to_name = {str(k): str(k) for k in stock_data.keys()}
         name_to_code = {str(k): str(k) for k in stock_data.keys()}
-
-    # 聚类趋势（优先 pattern/CMIN-CN）
     cluster_trend_dir = os.path.join(pattern_dir, "cluster_trend")
     if not os.path.exists(cluster_trend_dir):
         cluster_trend_dir = os.path.join(dataset_root, "pattern", "cluster_trend")
     cluster_trend = load_cluster_trend(cluster_trend_dir, code_to_name)
-
-    # 规则趋势（优先 pattern/CMIN-CN）
     trend_dir = os.path.join(pattern_dir, "trend")
     if not os.path.exists(trend_dir):
         trend_dir = os.path.join(dataset_root, "pattern", "trend")
     rule_trend = load_rule_trend(trend_dir, code_to_name)
-
-    # 行业信息
     industry_csv = os.path.join(dataset_root, "comp_industry", "comp_indus.csv")
     industry_info = load_industry_info(industry_csv)
-
     return {
         "stock_data": stock_data,
         "label": label,
@@ -4328,14 +4226,11 @@ def default_news_node_emb_dir(
     max_seq_len: int = 128,
     pooling: str = "pooler",
 ) -> str:
-    """主路径 news 节点 FinBERT 离线缓存目录。"""
+    """Default news node emb dir."""
     sub = str(news_type_subdir or "news_type").strip() or "news_type"
     safe = sub.replace(os.sep, "_").replace("/", "_")
     return os.path.join(
-        dataset_root,
-        "precomputed",
-        f"news_node_finbert_len{int(max_seq_len)}_{pooling}",
-        safe,
+        dataset_root, "precomputed", f"news_node_finbert_len{int(max_seq_len)}_{pooling}", safe
     )
 
 
@@ -4348,7 +4243,7 @@ def _encode_texts_finbert(
     batch_size: int = 32,
     pooling: str = "pooler",
 ) -> torch.Tensor:
-    """离线 FinBERT：返回 [N, 768] float32 CPU。"""
+    """Encode texts finbert."""
     if not texts:
         return torch.zeros((0, 768), dtype=torch.float32)
     outs: list[torch.Tensor] = []
@@ -4356,11 +4251,7 @@ def _encode_texts_finbert(
     for i in range(0, len(texts), bs):
         chunk = texts[i : i + bs]
         inputs = tokenizer(
-            chunk,
-            padding=True,
-            truncation=True,
-            max_length=int(max_seq_len),
-            return_tensors="pt",
+            chunk, padding=True, truncation=True, max_length=int(max_seq_len), return_tensors="pt"
         ).to(device)
         with torch.no_grad():
             outputs = model(**inputs)
@@ -4380,10 +4271,7 @@ def load_news_node_emb_rows(
     news_ids: list,
     emb_dim: int = 768,
 ) -> torch.Tensor:
-    """
-    按构图顺序从 cache_root/<company>/<date>.pt 取 news 节点 emb。
-    支持 emb_layout=by_news_id（推荐）与 packed（按 dict 顺序对齐 news_ids）。
-    """
+    """Load news node emb rows."""
     n = len(news_ids)
     if n == 0:
         return torch.zeros((0, emb_dim), dtype=torch.float32)
@@ -4406,22 +4294,19 @@ def load_news_node_emb_rows(
                 if not isinstance(emb, torch.Tensor) or emb.dim() != 2:
                     file_cache[key] = None
                 else:
-                    ids = [str(x) for x in (obj.get("news_ids") or [])]
+                    ids = [str(x) for x in obj.get("news_ids") or []]
                     if ids and len(ids) == int(emb.size(0)):
-                        id2i = {x: j for j, x in enumerate(ids)}
+                        id2i = {x: j for (j, x) in enumerate(ids)}
                     else:
-                        # packed / 无 news_ids：用顺序下标，调用方需保证顺序一致
                         id2i = {str(j): j for j in range(int(emb.size(0)))}
-                        # 也允许用原始 news_id 若文件带了 ids 但长度不匹配则退回顺序
                     file_cache[key] = (id2i, emb.float())
         packed = file_cache[key]
         if packed is None:
             miss += 1
             continue
-        id2i, emb = packed
+        (id2i, emb) = packed
         j = id2i.get(nid)
         if j is None:
-            # packed 兼容：若 nid 不在 map，尝试按出现顺序（脆弱，仅兜底）
             miss += 1
             continue
         if 0 <= int(j) < int(emb.size(0)):
@@ -4433,238 +4318,26 @@ def load_news_node_emb_rows(
     return out
 
 
-def precompute_news_node_embeddings(
-    dataset_root: str,
-    out_path: str,
-    *,
-    profile_key: str = "csmd50",
-    news_type_subdir: str = "news_type",
-    max_seq_len: int = 128,
-    batch_size: int = 32,
-    pooling: str = "pooler",
-    device: str | None = None,
-    finbert_model_path: str | None = None,
-):
-    """
-    离线预计算**全部**新闻节点 FinBERT 向量（训练时主路径 batch['news'].emb）。
-
-    输出：
-      out_path/<company>/<date>.pt
-        {
-          "emb_layout": "by_news_id",
-          "news_ids": [str, ...],
-          "emb": FloatTensor [N, 768],  # 与 news_ids 对齐
-          "max_seq_len": int,
-          "pooling": str,
-          "finbert_model_path": str,
-        }
-    """
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    device = torch.device(device)
-    pk = str(profile_key or "").strip().lower()
-    sub = str(news_type_subdir or "news_type").strip() or "news_type"
-    if pk in ("csmd50", "csmd300"):
-        all_data = load_csmd_all_data(dataset_root, news_type_subdir=sub)
-    elif pk == "massive":
-        all_data = load_cmin_us_all_data(dataset_root, news_type_subdir=sub)
-    else:
-        raise KeyError(f"unsupported profile_key={pk!r}; use csmd50|csmd300|massive")
-    news_texts = all_data["news_texts"]
-    companies = sorted(list(news_texts.keys()))
-
-    if finbert_model_path is None or not str(finbert_model_path).strip():
-        finbert_model_path = _default_finbert_path(us=(pk == "massive"))
-    finbert_model_path = str(finbert_model_path).strip()
-    print(f"[precompute_news_node] profile={pk} subdir={sub} finbert={finbert_model_path}")
-    print(f"[precompute_news_node] out={out_path} max_seq_len={max_seq_len} batch_size={batch_size}")
-    tokenizer = AutoTokenizer.from_pretrained(finbert_model_path)
-    model = AutoModel.from_pretrained(finbert_model_path).to(device)
-    model.eval()
-
-    out_root = out_path
-    os.makedirs(out_root, exist_ok=True)
-    total_pairs = 0
-    total_news = 0
-    for ci, comp in enumerate(companies):
-        comp_days = news_texts.get(comp, {})
-        if not comp_days:
-            continue
-        comp_out_dir = os.path.join(out_root, comp)
-        os.makedirs(comp_out_dir, exist_ok=True)
-        for d in sorted(comp_days.keys()):
-            id2text = comp_days[d]
-            news_ids = [str(nid) for nid in id2text.keys()]
-            texts = [str(id2text[nid]) for nid in id2text.keys()]
-            emb = _encode_texts_finbert(
-                texts,
-                tokenizer,
-                model,
-                device,
-                max_seq_len=max_seq_len,
-                batch_size=batch_size,
-                pooling=pooling,
-            )
-            torch.save(
-                {
-                    "emb_layout": "by_news_id",
-                    "news_ids": news_ids,
-                    "n_news": int(emb.size(0)),
-                    "max_seq_len": int(max_seq_len),
-                    "pooling": str(pooling),
-                    "finbert_model_path": finbert_model_path,
-                    "emb": emb.float(),
-                },
-                os.path.join(comp_out_dir, f"{d}.pt"),
-            )
-            total_pairs += 1
-            total_news += int(emb.size(0))
-        if (ci + 1) % 10 == 0 or (ci + 1) == len(companies):
-            print(f"[precompute_news_node] companies {ci + 1}/{len(companies)} done")
-
-    print(
-        f"[precompute_news_node] saved root={out_root} "
-        f"day_files={total_pairs} news={total_news} layout=by_news_id"
-    )
-
-
-def precompute_news_padding_embeddings(
-    dataset_root: str,
-    out_path: str,
-    k: int = 5,
-    max_seq_len: int = 100,
-    batch_size: int = 8,
-    pooling: str = "pooler",
-    device: str | None = None,
-    finbert_model_path: str | None = None,
-    profile_key: str = "csmd50",
-    news_type_subdir: str = "news_type",
-):
-    """
-    离线预计算：对每个 (company, date) 取前 k 条新闻，**只对有文本的条数**跑 FinBERT，
-    存盘为 packed：`emb` 形状 **[N_real, 768]**（N_real = 当天条数与 k 的较小值），不再用空串凑满 k 行。
-
-    输出格式（目录结构）：
-      out_path/
-        <company_name>/
-          <date_str>.pt
-            {
-              "emb_layout": "packed",
-              "n_news": int,           # = emb.size(0)
-              "k_cap": int,            # 与构图时 news_padding_k 一致的上限
-              "max_seq_len": int,
-              "pooling": str,
-              "emb": FloatTensor [N_real, 768],
-              "is_real": FloatTensor [N_real]  # 全 1，可选
-            }
-
-    兼容读取：旧版 `emb_layout` 缺省且 `emb` 为 [k,768] 时，Dataset 仍按固定 k 槽位加载。
-        """
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    device = torch.device(device)
-
-    pk = str(profile_key or "csmd50").strip().lower()
-    sub = str(news_type_subdir or "news_type").strip() or "news_type"
-    if pk in ("csmd50", "csmd300"):
-        all_data = load_csmd_all_data(dataset_root, news_type_subdir=sub)
-    elif pk == "massive":
-        all_data = load_cmin_us_all_data(dataset_root, news_type_subdir=sub)
-    else:
-        raise KeyError(f"unsupported profile_key={pk!r}; use csmd50|csmd300|massive")
-    news_texts = all_data["news_texts"]  # {company}{date}{news_id}: text
-    companies = sorted(list(news_texts.keys()))
-    all_dates = set()
-    for comp in companies:
-        all_dates.update(news_texts[comp].keys())
-    dates_sorted = sorted(all_dates)
-
-    if finbert_model_path is None or not str(finbert_model_path).strip():
-        finbert_model_path = _default_finbert_path(us=(pk == "massive"))
-    finbert_model_path = str(finbert_model_path).strip()
-    tokenizer = AutoTokenizer.from_pretrained(finbert_model_path)
-    model = AutoModel.from_pretrained(finbert_model_path).to(device)
-    model.eval()
-
-    # out_path 作为根目录
-    out_root = out_path
-    os.makedirs(out_root, exist_ok=True)
-
-    total_pairs = 0
-    # 逐 (company,date) 提取并写入：小文件、低内存
-    for comp in companies:
-        comp_days = news_texts.get(comp, {})
-        if not comp_days:
-            continue
-        comp_out_dir = os.path.join(out_root, comp)
-        os.makedirs(comp_out_dir, exist_ok=True)
-        for d in dates_sorted:
-            if d not in comp_days:
-                continue
-            id2text = comp_days[d]
-            news_ids = [str(nid) for nid in list(id2text.keys())[:k]]
-            texts = [str(id2text[nid]) for nid in list(id2text.keys())[:k]]
-            n_real = len(texts)
-            if n_real == 0:
-                emb = torch.zeros((0, 768), dtype=torch.float32)
-            else:
-                emb = _encode_texts_finbert(
-                    texts, tokenizer, model, device,
-                    max_seq_len=max_seq_len, batch_size=batch_size, pooling=pooling,
-                )
-
-            is_real_packed = torch.ones((n_real,), dtype=torch.float32)
-            _emb_save_path = os.path.join(comp_out_dir, f"{d}.pt")
-            torch.save(
-                {
-                    "emb_layout": "by_news_id",
-                    "news_ids": news_ids,
-                    "n_news": int(n_real),
-                    "k_cap": int(k),
-                    "max_seq_len": int(max_seq_len),
-                    "pooling": str(pooling),
-                    "emb": emb.float(),
-                    "is_real": is_real_packed,
-                },
-                _emb_save_path,
-            )
-            total_pairs += 1
-        print(f"[precompute_news_emb] company={comp} done")
-
-    print(f"[precompute_news_emb] saved root dir: {out_root}")
-    print(f"  pairs={total_pairs}  emb_layout=by_news_id  each_file=(N_real,768) with N_real<={k}")
-
-# --- CSMD 新闻 / pattern ---
-
 def _get_content_and_type_csmd(item):
-    """CSMD llm_extract JSON 条目：{"内容": "...", "类型": "个股新闻"} 或 {"content": "...", "type": "..."}"""
+    """Get content and type csmd."""
     if not isinstance(item, dict):
-        return None, None
+        return (None, None)
     content = item.get("内容") or item.get("content") or ""
     dtype = item.get("类型") or item.get("type") or ""
-    return (content.strip() if content else None), (dtype.strip() if dtype else None)
+    return (content.strip() if content else None, dtype.strip() if dtype else None)
 
 
 def load_news_from_csmd_raw_csv(news_dir: str):
-    """
-    CSMD 原始 news/*.csv（未经 llm_extract 处理）。
-    每个 CSV 行一条新闻：news_id=行号，类型留空（构图时默认按个股新闻处理）。
-
-    返回:
-    - news_texts[company][date][news_id] = 文本
-    - news_types[company][date][news_id] = 类型（空串）
-    """
+    """Load news from csmd raw csv."""
     news_texts = defaultdict(lambda: defaultdict(dict))
     news_types = defaultdict(lambda: defaultdict(dict))
-
     if not os.path.isdir(news_dir):
-        return news_texts, news_types
-
-    for company in os.listdir(news_dir):
+        return (news_texts, news_types)
+    for company in _list_input_directory(news_dir):
         company_dir = os.path.join(news_dir, company)
         if not os.path.isdir(company_dir):
             continue
-        for file_name in os.listdir(company_dir):
+        for file_name in _list_input_directory(company_dir):
             if not file_name.endswith(".csv"):
                 continue
             date_str = file_name.replace(".csv", "")
@@ -4681,34 +4354,23 @@ def load_news_from_csmd_raw_csv(news_dir: str):
                         news_types[company][date_str][news_id] = ""
             except Exception:
                 continue
-
-    return news_texts, news_types
+    return (news_texts, news_types)
 
 
 def load_news_and_types_from_llm_extract(llm_extract_news_type_dir):
-    """
-    CSMD 专用：直接从 llm_extract/news_type 读取新闻，JSON 格式为：
-    {"0": {"内容": "...", "类型": "个股新闻"}, "1": {...}, ...}
-    与 CMIN-CN 不同，CSMD 的新闻文本和类型在同一 JSON 中。
-
-    返回:
-    - news_texts[company][date][news_id] = 文本
-    - news_types[company][date][news_id] = 类型
-    """
+    """Load news and types from llm extract."""
     news_texts = defaultdict(lambda: defaultdict(dict))
     news_types = defaultdict(lambda: defaultdict(dict))
-
     if not os.path.exists(llm_extract_news_type_dir):
-        return news_texts, news_types
-
+        return (news_texts, news_types)
     company_list = [
-        d for d in os.listdir(llm_extract_news_type_dir)
+        d
+        for d in _list_input_directory(llm_extract_news_type_dir)
         if os.path.isdir(os.path.join(llm_extract_news_type_dir, d))
     ]
-
     for company in company_list:
         company_dir = os.path.join(llm_extract_news_type_dir, company)
-        for file_name in os.listdir(company_dir):
+        for file_name in _list_input_directory(company_dir):
             if not file_name.endswith(".json"):
                 continue
             date_str = file_name.replace(".json", "")
@@ -4718,26 +4380,25 @@ def load_news_and_types_from_llm_extract(llm_extract_news_type_dir):
                     data = json.load(f)
             except Exception:
                 continue
-
             for news_id, item in data.items():
-                content, dtype = _get_content_and_type_csmd(item)
+                (content, dtype) = _get_content_and_type_csmd(item)
                 if not content:
                     continue
                 news_texts[company][date_str][news_id] = content
                 news_types[company][date_str][news_id] = dtype if dtype else ""
+    return (news_texts, news_types)
 
-    return news_texts, news_types
 
 def load_news_subtypes(news_subtype_root):
-    """读取个股新闻细分类 pattern/news_subtype，subtype_id 1..11。"""
+    """Load news subtypes."""
     news_subtypes = defaultdict(lambda: defaultdict(dict))
     if not os.path.exists(news_subtype_root):
         return news_subtypes
-    for company in os.listdir(news_subtype_root):
+    for company in _list_input_directory(news_subtype_root):
         company_dir = os.path.join(news_subtype_root, company)
         if not os.path.isdir(company_dir):
             continue
-        for file_name in os.listdir(company_dir):
+        for file_name in _list_input_directory(company_dir):
             if not file_name.endswith(".json"):
                 continue
             date_str = file_name.replace(".json", "")
@@ -4746,10 +4407,11 @@ def load_news_subtypes(news_subtype_root):
                 with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, dict):
-                    news_subtypes[company][date_str] = {str(k): int(v) for k, v in data.items()}
+                    news_subtypes[company][date_str] = {str(k): int(v) for (k, v) in data.items()}
             except Exception:
                 continue
     return news_subtypes
+
 
 def rule_trend_cn_to_id(trend_cn: str | None) -> int:
     if not trend_cn:
@@ -4757,68 +4419,25 @@ def rule_trend_cn_to_id(trend_cn: str | None) -> int:
     s = str(trend_cn).strip()
     return int(RULE_TREND_CN_TO_ID.get(s, 0))
 
+
 def load_csmd_all_data(
-    dataset_root,
-    news_type_subdir: str = "news_type",
-    *,
-    news_source: str = "raw",
+    dataset_root, news_type_subdir: str = "news_type", *, news_source: str = "raw"
 ):
-    """
-    一次性读取 CSMD-50 相关的所有数据:
-    - 股价数据 (price/preprocessed)
-    - 新闻数据 (news)
-    - 新闻类型数据 (llm_extract/<news_type_subdir> 或 news_source=raw 时直接读 news/*.csv)
-    - 个股新闻聚类结果、聚类趋势、规则趋势：优先从 pattern/CSMD50 或 pattern/CSMD300 读取
-    - 公司行业数据 (comp_industry/comp_indus.csv)
-
-    返回一个字典，后续可用于构图/特征构造，而不需要把不同模态简单拼成一个大向量。
-    """
-    # pattern 优先用 dataset_root/pattern，其次 Pattern_Mining/pattern/<ds>
-    ds_name = os.path.basename(os.path.normpath(dataset_root)).replace("CSMD-50", "CSMD50").replace("CSMD-300", "CSMD300")
-    pattern_dir_candidates = [
-        os.path.join(dataset_root, "pattern"),
-        os.path.join(_PATTERN_ROOT, "pattern", ds_name),
-        os.path.join("./pattern", ds_name),
-    ]
-    pattern_dir = next((p for p in pattern_dir_candidates if os.path.isdir(p)), pattern_dir_candidates[0])
-
-    # 股价与标签（含原始行用于 label 校验）
+    """Load csmd all data."""
     price_dir = os.path.join(dataset_root, "price", "preprocessed")
-    stock_data, label, raw_line, volume = load_price(price_dir)
-
-    # 新闻与新闻类型
-    src = str(news_source or "raw").strip().lower()
-    if src == "raw":
-        news_dir = os.path.join(dataset_root, "news")
-        if not os.path.isdir(news_dir):
-            raise FileNotFoundError(f"CSMD raw news dir not found: {news_dir}")
-        news_texts, news_types = load_news_from_csmd_raw_csv(news_dir)
-    else:
-        sub = str(news_type_subdir or "news_type").strip() or "news_type"
-        llm_extract_news_type = os.path.join(dataset_root, "llm_extract", sub)
-        if not os.path.isdir(llm_extract_news_type):
-            raise FileNotFoundError(f"CSMD news_type dir not found: {llm_extract_news_type}")
-        news_texts, news_types = load_news_and_types_from_llm_extract(llm_extract_news_type)
-
-    news_subtype_root = os.path.join(pattern_dir, "news_subtype")
-    news_subtypes = load_news_subtypes(news_subtype_root) if os.path.exists(news_subtype_root) else {}
-
-    # CSMD：股价文件名为公司名 (如 爱尔眼科.txt)，无需 code_name.json，用 identity 映射
+    (stock_data, label, raw_line, volume) = load_price(price_dir)
+    if str(news_source or "raw").strip().lower() != "raw":
+        raise ValueError("The released CSMD recipes require raw news CSV inputs.")
+    news_dir = os.path.join(dataset_root, "news")
+    if not os.path.isdir(news_dir):
+        raise FileNotFoundError(f"CSMD raw news dir not found: {news_dir}")
+    (news_texts, news_types) = load_news_from_csmd_raw_csv(news_dir)
+    # These auxiliary graph fields are not consumed by the released model.
+    news_subtypes, cluster_trend, rule_trend = {}, {}, {}
     code_to_name = {c: c for c in stock_data.keys()}
     name_to_code = {c: c for c in stock_data.keys()}
-
-    # 聚类趋势 (价格序列的聚类结果)
-    cluster_trend_dir = os.path.join(pattern_dir, "cluster_trend")
-    cluster_trend = load_cluster_trend(cluster_trend_dir, code_to_name)
-
-    # 规则趋势 (technical pattern 规则, main_trend_cn)
-    trend_dir = os.path.join(pattern_dir, "trend")
-    rule_trend = load_rule_trend(trend_dir, code_to_name)
-
-    # 行业信息
     industry_csv = os.path.join(dataset_root, "comp_industry", "comp_indus.csv")
     industry_info = load_industry_info(industry_csv)
-
     return {
         "stock_data": stock_data,
         "label": label,
@@ -4835,13 +4454,383 @@ def load_csmd_all_data(
     }
 
 
+def _pad_ratio_row_to_news_types(row: list[float]) -> list[float]:
+    """Pad ratio row to news types."""
+    n = NUM_VIRTUAL_NEWS_TYPES
+    if len(row) >= n:
+        return row[:n]
+    row = list(row)
+    if len(row) == n - 1 and len(row) >= 3:
+        ind_mean = sum(row[2:]) / max(len(row) - 2, 1)
+        row.append(ind_mean * 0.5)
+    while len(row) < n:
+        row.append(row[-1] if row else 0.0)
+    return row[:n]
+
+
+def _builtin_price_type_news_type_ratios() -> dict[int, list[float]]:
+    """Builtin price type news type ratios."""
+    _raw = {
+        0: [
+            0.5605,
+            0.9864,
+            0.4092,
+            0.0886,
+            0.2622,
+            0.1971,
+            0.1991,
+            0.541,
+            0.1618,
+            0.1917,
+            0.1815,
+            0.2969,
+        ],
+        1: [
+            0.5738,
+            0.9812,
+            0.4506,
+            0.0885,
+            0.1798,
+            0.1279,
+            0.159,
+            0.4638,
+            0.1516,
+            0.1263,
+            0.1619,
+            0.3153,
+        ],
+        2: [
+            0.622,
+            0.9622,
+            0.4635,
+            0.0961,
+            0.1263,
+            0.2172,
+            0.2124,
+            0.4444,
+            0.1335,
+            0.1987,
+            0.1458,
+            0.2857,
+        ],
+        3: [
+            0.6505,
+            0.9544,
+            0.4361,
+            0.0912,
+            0.15,
+            0.1458,
+            0.1192,
+            0.3944,
+            0.1234,
+            0.1974,
+            0.1491,
+            0.2836,
+        ],
+        4: [
+            0.5385,
+            0.9905,
+            0.4135,
+            0.1143,
+            0.2353,
+            0.1667,
+            0.1875,
+            0.5238,
+            0.0645,
+            0.05,
+            0.1613,
+            0.4688,
+        ],
+        5: [
+            0.3333,
+            0.9907,
+            0.4737,
+            0.1935,
+            0.2143,
+            0.25,
+            0.275,
+            0.6154,
+            0.1026,
+            0.3243,
+            0.1347,
+            0.1935,
+        ],
+        6: [
+            0.6727,
+            0.9769,
+            0.4673,
+            0.102,
+            0.1818,
+            0.1892,
+            0.5,
+            0.6341,
+            0.1154,
+            0.1607,
+            0.1362,
+            0.1786,
+        ],
+        7: [
+            0.3846,
+            0.9829,
+            0.4066,
+            0.0455,
+            0.125,
+            0.0417,
+            0.5,
+            0.5385,
+            0.0323,
+            0.2609,
+            0.1702,
+            0.2,
+        ],
+    }
+    return {pt: _pad_ratio_row_to_news_types(row) for (pt, row) in _raw.items()}
+
+
+def parse_price_type_news_type_ratios_from_report(report_path: str) -> dict[int, list[float]]:
+    """Parse price type news type ratios from report."""
+    ratios: dict[int, list[float]] = {}
+    if not report_path or not os.path.isfile(report_path):
+        return ratios
+    with open(report_path, "r", encoding="utf-8") as f:
+        for line in f:
+            s = line.strip()
+            if not s.startswith("price_type=") or ":" not in s:
+                continue
+            (head, tail) = s.split(":", 1)
+            try:
+                pt = int(head.replace("price_type=", "").strip())
+            except ValueError:
+                continue
+            vals = []
+            for x in tail.split():
+                try:
+                    vals.append(float(x))
+                except ValueError:
+                    pass
+            if vals:
+                ratios[pt] = _pad_ratio_row_to_news_types(vals)
+    return ratios
+
+
+def _news_type_name(news_type_id: int) -> str:
+    if news_type_id == 0:
+        return "市场"
+    if news_type_id == 1:
+        return "行业/板块"
+    if 2 <= news_type_id <= 12:
+        return _INDIVIDUAL_SUBTYPE_NAMES.get(news_type_id - 1, f"个股细分类{news_type_id - 1}")
+    return str(news_type_id)
+
+
+def _price_type_cn(price_type_id: int) -> str:
+    names = {
+        0: "冲高回落",
+        1: "宽幅震荡",
+        2: "弱势上涨",
+        3: "弱势下跌",
+        4: "强势上涨",
+        5: "强势下跌",
+        6: "探底回升",
+        7: "窄幅横盘",
+    }
+    return names.get(int(price_type_id), str(price_type_id))
+
+
+def write_synthesis_by_pt_csv_from_pooled(
+    pooled_csv: str, out_csv: str, *, num_price_type: int = 10, tag: str = "synthesis_from_pooled"
+) -> int:
+    """Write synthesis by pt csv from pooled."""
+    pooled_rows: list[tuple[int, int, str, float]] = []
+    if not pooled_csv or not os.path.isfile(pooled_csv):
+        print(f"[SYNTHESIS_FROM_POOLED] pooled csv not found: {pooled_csv}")
+        return 0
+    with open(pooled_csv, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                w = int(row.get("w_off", -1))
+                nt = int(row.get("news_type_id", row.get("news_type", -1)))
+                ratio = float(row.get("keep_ratio", row.get("ratio", "nan")))
+            except (TypeError, ValueError):
+                continue
+            if w < 0 or nt < 0 or ratio <= 0:
+                continue
+            name = str(row.get("news_type_name", "") or "").strip() or _news_type_name(nt)
+            pooled_rows.append((w, nt, name, ratio))
+    pooled_rows.sort(key=lambda x: (-x[3], x[0], x[1]))
+    n_pt = max(1, int(num_price_type))
+    out_rows: list[tuple] = []
+    for pt in range(n_pt):
+        for rank, (w, nt, name, ratio) in enumerate(pooled_rows, start=1):
+            out_rows.append((rank, pt, w, nt, name, ratio))
+    _dir = os.path.dirname(out_csv)
+    if _dir:
+        os.makedirs(__dir, exist_ok=True)
+    with open(out_csv, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "rank",
+                "price_type_id",
+                "price_type_cn",
+                "w_off",
+                "news_type_id",
+                "news_type_name",
+                "keep_ratio",
+                "source",
+            ]
+        )
+        for rank, pt, w, nt, name, ratio in out_rows:
+            writer.writerow([rank, pt, _price_type_cn(pt), w, nt, name, f"{ratio:.4f}", tag])
+    print(
+        f"[SYNTHESIS_FROM_POOLED] wrote {len(out_rows)} rows ({len(pooled_rows)} pooled edges × {n_pt} price_types) -> {out_csv}"
+    )
+    return len(out_rows)
+
+
+def _write_price_type_top_news_type_csvs(
+    pt_type_ratio: np.ndarray, top_path: str, full_path: str, *, top_k: int = 5
+):
+    """Write price type top news type csvs."""
+    arr = np.asarray(pt_type_ratio, dtype=np.float64)
+    if arr.ndim < 2:
+        return
+    (n_pt, n_nt) = (arr.shape[0], min(NUM_VIRTUAL_NEWS_TYPES, arr.shape[1]))
+    top_k = max(1, int(top_k))
+
+    def _write(path: str, rows: list[list]):
+        if not path:
+            return
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            csv.writer(f).writerows(rows)
+
+    header = [
+        "price_type_id",
+        "price_type_cn",
+        "rank",
+        "news_type_id",
+        "news_type_name",
+        "keep_ratio",
+    ]
+    full_rows = [header]
+    top_rows = [header]
+    for pt in range(n_pt):
+        scored = [(nt, float(arr[pt, nt])) for nt in range(n_nt)]
+        scored.sort(key=lambda x: (-x[1], x[0]))
+        for rank, (nt, ratio) in enumerate(scored, start=1):
+            full_rows.append(
+                [pt, _price_type_cn(pt), rank, nt, _news_type_name(nt), f"{ratio:.4f}"]
+            )
+        for rank, (nt, ratio) in enumerate(scored[:top_k], start=1):
+            top_rows.append([pt, _price_type_cn(pt), rank, nt, _news_type_name(nt), f"{ratio:.4f}"])
+    _write(full_path, full_rows)
+    _write(top_path, top_rows)
+    print(
+        f"[FILTER_REPORT] saved price_type top news CSV: top_k={top_k} -> {top_path} ({len(top_rows) - 1} rows); full -> {full_path} ({len(full_rows) - 1} rows)"
+    )
+
+
+def _pick_news_types_by_ratio_row(
+    row: list[float], k: int, pick: str, num_news_type: int = NUM_VIRTUAL_NEWS_TYPES
+) -> set[int]:
+    """Pick news types by ratio row."""
+    n = min(len(row), int(num_news_type))
+    kk = max(0, int(k))
+    if kk <= 0 or n <= 0:
+        return set()
+    pick_l = str(pick or "top").lower()
+    if pick_l == "bottom":
+        order = sorted(range(n), key=lambda i: (float(row[i]), i))
+        return set(order[:kk])
+    order = sorted(range(n), key=lambda i: (-float(row[i]), i))
+    if pick_l == "middle":
+        start = max(0, (n - kk) // 2)
+        return set(order[start : start + kk])
+    return set(order[:kk])
+
+
+def _pick_rank_slice(n: int, k: int, pick: str) -> tuple[int, int]:
+    """Pick rank slice."""
+    n = max(0, int(n))
+    kk = max(0, min(int(k), n))
+    if kk <= 0:
+        return (0, 0)
+    pick_l = str(pick or "top").lower()
+    if pick_l == "bottom":
+        return (n - kk, n)
+    if pick_l == "middle":
+        start = max(0, (n - kk) // 2)
+        return (start, start + kk)
+    return (0, kk)
+
+
+def load_synthesis_pooled_edge_keys(
+    csv_path: str, k: int, pick: str = "top"
+) -> frozenset[tuple[int, int]]:
+    """Load synthesis pooled edge keys."""
+    rows: list[tuple[int, int]] = []
+    if not csv_path or not os.path.isfile(csv_path):
+        return frozenset()
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                w = int(row.get("w_off", -1))
+                nt = int(row.get("news_type_id", row.get("news_type", -1)))
+            except (TypeError, ValueError):
+                continue
+            if w >= 0 and nt >= 0:
+                rows.append((w, nt))
+    (s, e) = _pick_rank_slice(len(rows), k, pick)
+    return frozenset(rows[s:e])
+
+
+def load_synthesis_pt_edge_keys(
+    csv_path: str, k: int, pick: str = "top", num_price_type: int = 10
+) -> dict[int, frozenset[tuple[int, int]]]:
+    """Load synthesis pt edge keys."""
+    by_pt: dict[int, list[tuple[int, int]]] = defaultdict(list)
+    if not csv_path or not os.path.isfile(csv_path):
+        return {}
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                pt = int(row.get("price_type_id", row.get("price_type", -1)))
+                w = int(row.get("w_off", -1))
+                nt = int(row.get("news_type_id", row.get("news_type", -1)))
+            except (TypeError, ValueError):
+                continue
+            if pt >= 0 and w >= 0 and (nt >= 0):
+                by_pt[pt].append((w, nt))
+    mapping: dict[int, frozenset[tuple[int, int]]] = {}
+    for pt in range(int(num_price_type)):
+        items = by_pt.get(pt, [])
+        (s, e) = _pick_rank_slice(len(items), k, pick)
+        mapping[pt] = frozenset(items[s:e])
+    return mapping
+
+
+def _w_off_offsets_from_edge_keys(
+    edge_keys: frozenset[tuple[int, int]] | set[tuple[int, int]], span: int = 5
+) -> list[int]:
+    offs = sorted({int(w) for (w, _) in edge_keys})
+    return offs if offs else list(range(max(1, int(span))))
+
+
 def _set_block(buf: BatchBuffer, name: str, **fields) -> None:
     blk = buf[name]
     for k, v in fields.items():
         setattr(blk, k, v)
 
+
 def _set_link(buf: BatchBuffer, src: str, rel: str, dst: str, index: torch.Tensor) -> None:
     buf[src, rel, dst].edge_index = index
+
 
 def window_sample_to_buffer(sample: WindowSample) -> BatchBuffer:
     buf = BatchBuffer()
@@ -4858,7 +4847,6 @@ def window_sample_to_buffer(sample: WindowSample) -> BatchBuffer:
     _set_block(buf, "price", **_price_fields)
     if sample.calendar_frac is not None:
         _set_block(buf, "date", x=sample.calendar_frac)
-
     news_fields = dict(
         x=sample.news_count,
         company_id=sample.news_company_id,
@@ -4878,8 +4866,11 @@ def window_sample_to_buffer(sample: WindowSample) -> BatchBuffer:
         news_fields["token_type_ids"] = sample.news_token_type_ids
     if sample.news_emb is not None:
         news_fields["emb"] = sample.news_emb
+    if sample.news_impact_y is not None:
+        news_fields["impact_y"] = sample.news_impact_y
+    if sample.news_impact_y_valid is not None:
+        news_fields["impact_y_valid"] = sample.news_impact_y_valid
     _set_block(buf, "news", **news_fields)
-
     npad = dict(
         x=sample.news_pad_x,
         is_real=sample.news_pad_is_real,
@@ -4895,16 +4886,15 @@ def window_sample_to_buffer(sample: WindowSample) -> BatchBuffer:
     if sample.news_pad_emb is not None:
         npad["emb"] = sample.news_pad_emb
     _set_block(buf, "news_padding", **npad)
-
     _set_block(buf, "news_type", x=sample.news_type_feat)
     _set_block(buf, "price_type", x=sample.price_type_feat)
     if sample.industry_id_feat is not None:
         _set_block(buf, "industry_type", x=sample.industry_id_feat)
     if sample.rule_trend_id_feat is not None:
         _set_block(buf, "rule_trend_type", x=sample.rule_trend_id_feat)
-
     _set_block(
-        buf, "label",
+        buf,
+        "label",
         x=sample.label_bin,
         org=sample.label_org,
         strong_mask=sample.label_strong_mask,
@@ -4923,21 +4913,30 @@ def window_sample_to_buffer(sample: WindowSample) -> BatchBuffer:
         _set_block(buf, "virtual_trend", x=sample.virtual_trend_table)
     if sample.virtual_rule_trend_table is not None:
         _set_block(buf, "virtual_rule_trend", x=sample.virtual_rule_trend_table)
-
     _set_link(buf, "news", "to", "news_type", sample.map_news_to_news_type)
     _set_link(buf, "price", "to", "price_type", sample.map_price_to_price_type)
     _set_link(buf, "price", "to", "virtual_window", sample.map_price_to_virtual_window)
     _set_link(buf, "news", "to", "virtual_window", sample.map_news_to_virtual_window)
     _set_link(buf, "news", "to", "virtual_news", sample.map_news_to_virtual_news)
-    _set_link(buf, "news_type", "to", "virtual_news_type", sample.map_news_type_to_virtual_news_type)
-    _set_link(buf, "price_type", "to", "virtual_price_type", sample.map_price_type_to_virtual_price_type)
-    _set_link(buf, "virtual_price_type", "to", "price_type", sample.map_virtual_price_type_to_price_type)
+    _set_link(
+        buf, "news_type", "to", "virtual_news_type", sample.map_news_type_to_virtual_news_type
+    )
+    _set_link(
+        buf, "price_type", "to", "virtual_price_type", sample.map_price_type_to_virtual_price_type
+    )
+    _set_link(
+        buf, "virtual_price_type", "to", "price_type", sample.map_virtual_price_type_to_price_type
+    )
     if sample.map_price_to_industry is not None:
         _set_link(buf, "price", "to", "industry_type", sample.map_price_to_industry)
     if sample.map_industry_to_virtual_industry is not None:
-        _set_link(buf, "industry_type", "to", "virtual_industry", sample.map_industry_to_virtual_industry)
+        _set_link(
+            buf, "industry_type", "to", "virtual_industry", sample.map_industry_to_virtual_industry
+        )
     if sample.map_virtual_industry_to_industry is not None:
-        _set_link(buf, "virtual_industry", "to", "industry_type", sample.map_virtual_industry_to_industry)
+        _set_link(
+            buf, "virtual_industry", "to", "industry_type", sample.map_virtual_industry_to_industry
+        )
     if sample.map_price_to_virtual_trend is not None:
         _set_link(buf, "price", "to", "virtual_trend", sample.map_price_to_virtual_trend)
     if sample.map_virtual_trend_to_price is not None:
@@ -4945,21 +4944,34 @@ def window_sample_to_buffer(sample: WindowSample) -> BatchBuffer:
     if sample.map_price_to_rule_trend is not None:
         _set_link(buf, "price", "to", "rule_trend_type", sample.map_price_to_rule_trend)
     if sample.map_rule_trend_to_virtual_rule_trend is not None:
-        _set_link(buf, "rule_trend_type", "to", "virtual_rule_trend", sample.map_rule_trend_to_virtual_rule_trend)
+        _set_link(
+            buf,
+            "rule_trend_type",
+            "to",
+            "virtual_rule_trend",
+            sample.map_rule_trend_to_virtual_rule_trend,
+        )
     if sample.map_virtual_rule_trend_to_rule_trend is not None:
-        _set_link(buf, "virtual_rule_trend", "to", "rule_trend_type", sample.map_virtual_rule_trend_to_rule_trend)
-
+        _set_link(
+            buf,
+            "virtual_rule_trend",
+            "to",
+            "rule_trend_type",
+            sample.map_virtual_rule_trend_to_rule_trend,
+        )
     buf["range_dates"] = sample.range_dates
     return buf
 
+
 def buffer_to_window_sample(buf: BatchBuffer) -> WindowSample:
-    """从内部 BatchBuffer 导出扁平 WindowSample。"""
+    """Buffer to window sample."""
     p = buf["price"]
     n = buf["news"]
     npad = buf["news_padding"]
-
     sample = WindowSample(
-        range_dates=list(buf._meta.get("range_dates", buf["range_dates"] if "range_dates" in buf._meta else [])),
+        range_dates=list(
+            buf._meta.get("range_dates", buf["range_dates"] if "range_dates" in buf._meta else [])
+        ),
         price_seq=p.x,
         price_company_id=p.company_id,
         price_day_id=p.day_id,
@@ -4978,8 +4990,12 @@ def buffer_to_window_sample(buf: BatchBuffer) -> WindowSample:
         news_vocab_mask=getattr(n, "vocab_attention_mask", torch.zeros(0, 100, dtype=torch.long)),
         news_pad_x=npad.x,
         news_pad_is_real=getattr(npad, "is_real", torch.zeros(0, 0)),
-        news_pad_vocab_ids=getattr(npad, "vocab_input_ids", torch.zeros(0, 0, 100, dtype=torch.long)),
-        news_pad_vocab_mask=getattr(npad, "vocab_attention_mask", torch.zeros(0, 0, 100, dtype=torch.long)),
+        news_pad_vocab_ids=getattr(
+            npad, "vocab_input_ids", torch.zeros(0, 0, 100, dtype=torch.long)
+        ),
+        news_pad_vocab_mask=getattr(
+            npad, "vocab_attention_mask", torch.zeros(0, 0, 100, dtype=torch.long)
+        ),
         news_type_feat=buf["news_type"].x,
         price_type_feat=buf["price_type"].x,
         label_bin=buf["label"].x,
@@ -4989,9 +5005,7 @@ def buffer_to_window_sample(buf: BatchBuffer) -> WindowSample:
         label_vol_bin=getattr(buf["label"], "vol_x", torch.zeros_like(buf["label"].x)),
         label_vol_org=getattr(buf["label"], "vol_org", torch.zeros_like(buf["label"].org)),
         label_vol_valid_mask=getattr(
-            buf["label"],
-            "vol_valid_mask",
-            torch.zeros_like(buf["label"].valid_mask),
+            buf["label"], "vol_valid_mask", torch.zeros_like(buf["label"].valid_mask)
         ),
         virtual_window_table=buf["virtual_window"].x,
         virtual_news_table=buf["virtual_news"].x,
@@ -5008,6 +5022,10 @@ def buffer_to_window_sample(buf: BatchBuffer) -> WindowSample:
         sample.news_token_type_ids = n.token_type_ids
     if hasattr(n, "emb"):
         sample.news_emb = n.emb
+    if hasattr(n, "impact_y"):
+        sample.news_impact_y = n.impact_y
+    if hasattr(n, "impact_y_valid"):
+        sample.news_impact_y_valid = n.impact_y_valid
     if hasattr(npad, "input_ids"):
         sample.news_pad_input_ids = npad.input_ids
     if hasattr(npad, "attention_mask"):
@@ -5049,12 +5067,17 @@ def buffer_to_window_sample(buf: BatchBuffer) -> WindowSample:
         sample.map_virtual_trend_to_price = _ei("virtual_trend", "to", "price")
     if "rule_trend_type" in buf.node_types:
         sample.map_price_to_rule_trend = _ei("price", "to", "rule_trend_type")
-        sample.map_rule_trend_to_virtual_rule_trend = _ei("rule_trend_type", "to", "virtual_rule_trend")
-        sample.map_virtual_rule_trend_to_rule_trend = _ei("virtual_rule_trend", "to", "rule_trend_type")
+        sample.map_rule_trend_to_virtual_rule_trend = _ei(
+            "rule_trend_type", "to", "virtual_rule_trend"
+        )
+        sample.map_virtual_rule_trend_to_rule_trend = _ei(
+            "virtual_rule_trend", "to", "rule_trend_type"
+        )
     return sample
 
+
 def load_window_sample_from_cache(path: str, range_dates: list[str] | None = None) -> WindowSample:
-    """读取旧 .pt cache（HeteroData 或 BatchBuffer）并转为 WindowSample。"""
+    """Load window sample from cache."""
     try:
         obj = torch.load(path, map_location="cpu", weights_only=False)
     except TypeError:
@@ -5065,24 +5088,124 @@ def load_window_sample_from_cache(path: str, range_dates: list[str] | None = Non
         if range_dates:
             obj["range_dates"] = range_dates
         return buffer_to_window_sample(obj)
-    # legacy HeteroData
-    from window_batch import hetero_to_window
-    from window_batch import WindowBatch
+    raise ValueError("Unsupported cached sample format; rebuild it with this data loader.")
 
-    wb = hetero_to_window(obj)
-    buf = BatchBuffer()
-    for nt in wb.node_types:
-        blk = buf[nt]
-        for k, v in wb[nt]._fields.items():
-            setattr(blk, k, v)
-    for et in wb.edge_types:
-        lnk = buf[et[0], et[1], et[2]]
-        for k, v in wb[et]._fields.items():
-            setattr(lnk, k, v)
-    for k, v in wb._meta.items():
-        buf._meta[k] = v
-    if range_dates:
-        buf._meta["range_dates"] = range_dates
-    return buffer_to_window_sample(buf)
 
-# --- builders (debug helpers) ---
+def _test_print_sample_alignment(
+    ds, batch, i: int, target_date: str | None = None, num_w_off: int = 5
+) -> dict:
+    """Test print sample alignment."""
+    comp_idx = int(batch["price"].company_id[i].item())
+    day_i = int(batch["price"].day_id[i].item())
+    comp = ds.companies[comp_idx] if comp_idx < len(ds.companies) else "?"
+    if target_date is None:
+        price_dates_attr = getattr(batch["price"], "date", None)
+        if isinstance(price_dates_attr, (list, tuple)) and i < len(price_dates_attr):
+            target_date = price_dates_attr[i]
+        else:
+            target_date = "?"
+    if isinstance(target_date, (list, tuple)):
+        target_date = target_date[0] if target_date else "?"
+    target_date = str(target_date)
+    range_dates = getattr(batch, "range_dates", None)
+    if range_dates is None and hasattr(batch, "get"):
+        range_dates = batch.get("range_dates")
+    if isinstance(range_dates, torch.Tensor):
+        range_dates = [str(x) for x in range_dates.view(-1).tolist()]
+    elif (
+        isinstance(range_dates, (list, tuple))
+        and len(range_dates) == 1
+        and isinstance(range_dates[0], (list, tuple))
+    ):
+        range_dates = list(range_dates[0])
+    comp_dates = sorted(ds.stock_data.get(comp, {}).keys()) if comp else []
+    date_to_pos = {d: j for (j, d) in enumerate(comp_dates)}
+    pos = date_to_pos.get(target_date)
+    pw = int(getattr(ds, "price_window", 5))
+    prev_date = ds.prev_date.get(comp, {}).get(target_date, "") if comp else ""
+    if not prev_date and pos is not None and (pos >= 1):
+        prev_date = comp_dates[pos - 1]
+    price_window_dates: list[str] = []
+    if pos is not None and pos >= pw:
+        price_window_dates = comp_dates[pos - pw : pos]
+    label_org = (
+        float(batch["label"].org[i].item())
+        if hasattr(batch["label"], "org")
+        else float(batch["label"].x[i].item())
+    )
+    news_by_date = ds.news_texts.get(comp, {}) if comp else {}
+    news_padding_items = []
+    if prev_date and prev_date in news_by_date:
+        for _nid, txt in list(news_by_date[prev_date].items())[
+            : int(getattr(ds, "news_padding_k", 5))
+        ]:
+            s = "" if txt is None else str(txt).replace("\n", " ").strip()
+            news_padding_items.append(s[:80] + ("..." if len(s) > 80 else ""))
+    news_graph_by_woff: list[tuple[int, str, int, str]] = []
+    if isinstance(range_dates, (list, tuple)):
+        for w in range(num_w_off):
+            src_day_i = day_i - w
+            if 0 <= src_day_i < len(range_dates):
+                tgt_d = str(range_dates[src_day_i])
+                pub_d = ds.prev_date.get(comp, {}).get(tgt_d, "") if comp else ""
+                if not pub_d and tgt_d in date_to_pos and (date_to_pos[tgt_d] >= 1):
+                    pub_d = comp_dates[date_to_pos[tgt_d] - 1]
+                n_cnt = len(news_by_date.get(pub_d, {})) if pub_d else 0
+                news_graph_by_woff.append((w, pub_d or "?", n_cnt, tgt_d))
+    price_rows = batch["price"].x[i].cpu().tolist() if batch["price"].x.numel() else []
+    price_hlc = [[round(x, 4) for x in row[:3]] for row in price_rows] if price_rows else []
+    return {
+        "company": comp,
+        "target_date": target_date,
+        "prev_date": prev_date or "",
+        "price_window_dates": price_window_dates,
+        "price_hlc_by_day": (
+            list(zip(price_window_dates, price_hlc))
+            if len(price_window_dates) == len(price_hlc)
+            else []
+        ),
+        "news_padding_date": prev_date or "",
+        "news_padding_items": news_padding_items,
+        "news_graph_by_woff": news_graph_by_woff,
+        "label_org": label_org,
+        "rule_trend": (
+            ds.rule_trend.get(comp, {}).get(
+                ds._resolve_trend_date(comp, target_date) if comp else "", ""
+            )
+            if comp
+            else ""
+        ),
+        "trend_date": ds._resolve_trend_date(comp, target_date) if comp else "",
+    }
+
+
+def _print_test_print_alignment_block(align: dict, predict: float, label_bin: float) -> None:
+    print("=" * 72)
+    print(f"公司: {align['company']}")
+    print(
+        f"目标日 target_date: {align['target_date']}  |  股价最后一根 prev_date: {align['prev_date']}"
+    )
+    print(f"rule_trend({align.get('trend_date', align['prev_date'])}): {align['rule_trend']}")
+    print("-" * 72)
+    print(
+        f"【股价输入】共 {len(align['price_window_dates'])} 天 (不含 target_date，最后一根=prev_date):"
+    )
+    for d, hlc in align.get("price_hlc_by_day", []):
+        mark = " ← prev_date(最后一根)" if d == align["prev_date"] else ""
+        print(f"  {d}  HLC={hlc}{mark}")
+    print("-" * 72)
+    pad_d = align["news_padding_date"] or "(无)"
+    print(f"【news_padding】新闻发布日 {pad_d} (对应预测 target_date={align['target_date']}):")
+    if align["news_padding_items"]:
+        for j, t in enumerate(align["news_padding_items"], 1):
+            print(f"  [{j}] {t}")
+    else:
+        print("  (无新闻)")
+    print("-" * 72)
+    print("【news 图路径 w_off→price】新闻发布日 → 连到 target_date 的 price 节点:")
+    for w, pub_d, cnt, tgt_d in align["news_graph_by_woff"]:
+        print(f"  w_off={w}: 新闻日 {pub_d}  (#{cnt} 条) → target {tgt_d}")
+    print("-" * 72)
+    print(f"【输出】label_org(target日收益)={align['label_org']:.6f}")
+    print(f"       predict(sigmoid)={predict:.4f}  label_bin={label_bin:.0f}")
+    print("=" * 72)

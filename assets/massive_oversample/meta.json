@@ -1,6 +1,6 @@
 {
   "dataset": "MASSIVE",
-  "dataset_root": "/home/zhaokx/Pattern/Pattern_Mining/dataset/massive_data",
+  "dataset_root": "data/massive_data",
   "split_mode": "contiguous",
   "split": {
     "train": [

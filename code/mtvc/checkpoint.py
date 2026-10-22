@@ -1,105 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Save / load MTVC checkpoints and metadata.
+"""Checkpoints: model, optimizer, RNG, and the CLI config."""
 
-Role
-----
-- Write ``best.pt`` + ``best.pt.meta.json`` (weights, optimizer, RNG, CLI, metrics).
-- Resume helpers used by ``train.py``.
-- Only ``train`` is a valid checkpoint mode here.
-"""
 from __future__ import annotations
-
 import json
 import math
 import os
 import random
 from datetime import datetime
 from typing import Any
-
 import numpy as np
 import torch
 
-
 FORMAT_VERSION = 1
-TRAIN_MODES = frozenset({"train"})
-
-# Old paper ckpts may still ship unused heads (Sougou emb, CNN, virtual nodes, …).
-# Strip before strict load so finished runs stay loadable; paper path is random TextTF.
-_LEGACY_UNUSED_KEY_PREFIXES = (
-    "sougou_embedding.",
-    "vocab_convs.",
-    "vocab_proj.",
-    "_unified_emb_mean_proj.",
-    "unitrans_vol_proj.",
-    "unitrans_vol_tok.",
-    "unitrans_pad_vol",
-    "news_vol_aux_head.",
-    "news_global_parameter",
-    "mlp_news_global.",
-    "pred_fusion_news_global_proj.",
-    "virtual_trend_emb",
-    "mlp_virtual_trend.",
-    "mlp_virtual_trend_type.",
-    "mlp_virtual_trend_window.",
-    "trend_competition_scorer.",
-    "competition_scorer.",
-    "mlp_virtual_industry.",
-    "virtual_news_type_emb",
-    "vnt_fuse_mlp.",
-    "vnw_fuse_mlp.",
-    "window_score_mlp.",
-    "type_score_mlp.",
-    "window_msg_mlp.",
-    "news_type_msg_mlp.",
-    "news_day_attn.",
-    "news_day_attn_norm.",
-    "news_day_weight_mlp.",
-    "virtual_price_type_emb",
-    "ssl_recon_n2p.",
-    "ssl_recon_mlm.",
-    "stock_cross_attn.",
-    "stock_cross_norm.",
-    "attn_mlp.",
-    "attn_score.",
-    "news_gate_proj.",
-    "news_gate_proj_reduce.",
-    "news_main_feat_proj.",
-    "edge_feedback_logit_scale",
-    "edge_feedback_mlp.",
-    "edge_feedback_mlp_low.",
-    "edge_feedback_mlp_high.",
-    "text_graph_dropout.",
-    "attention_mlp.",
-    "aux_post_logits.",
-    "aux_post_fuse_to_main.",
-)
-
-# Class/attr renames for load-time key rewrite.
-_LEGACY_KEY_RENAMES = (
-    ("bert_tok_transformer.", "news_transformer_encoder."),
-    ("ssl_proj_p.", "contrast_proj_p."),
-    ("ssl_proj_n.", "contrast_proj_n."),
-)
-
-
-def strip_legacy_unused_state_keys(
-    state_dict: dict[str, torch.Tensor],
-) -> tuple[dict[str, torch.Tensor], list[str]]:
-    """Drop unused legacy keys; rename bert_tok→news_transformer; strip ``module.``."""
-    cleaned: dict[str, torch.Tensor] = {}
-    dropped: list[str] = []
-    for key, value in state_dict.items():
-        name = key[7:] if key.startswith("module.") else key
-        if any(name.startswith(p) for p in _LEGACY_UNUSED_KEY_PREFIXES):
-            dropped.append(name)
-            continue
-        for old, new in _LEGACY_KEY_RENAMES:
-            if name.startswith(old):
-                name = new + name[len(old) :]
-                break
-        cleaned[name] = value
-    return cleaned, dropped
+TRAIN_MODES = frozenset({"train", "train_simple"})
 
 
 def namespace_to_dict(args) -> dict[str, Any]:
@@ -111,43 +23,33 @@ def namespace_to_dict(args) -> dict[str, Any]:
             out[k] = list(v)
         else:
             out[k] = str(v)
+    root = os.environ.get("DUAL_TF_MODEL_DIR", os.getcwd())
+    for key, value in out.items():
+        if isinstance(value, str) and os.path.isabs(value):
+            out[key] = os.path.relpath(value, root)
     return out
-
-
-def default_ckpt_dir(profile, args) -> str:
-    """默认检查点目录：./checkpoints/{dataset}_{mode}_{tag}/"""
-    parts = [str(profile.key), str(getattr(args, "mode", "train") or "train")]
-    for name, val in (
-        ("ablation", getattr(args, "news_ablation_mode", "full")),
-        ("enc", getattr(args, "news_encode_mode", "vocab")),
-    ):
-        sval = str(val)
-        if sval not in ("full", "vocab", "false", "default"):
-            parts.append(f"{name}-{sval}")
-    if getattr(args, "no_price_token", False):
-        parts.append("noprice")
-    return os.path.join("./checkpoints", "_".join(parts))
 
 
 def is_ckpt_enabled(args) -> bool:
     if getattr(args, "no_save_ckpt", False):
         return False
     mode = str(getattr(args, "mode", ""))
-    if mode == "train_edge_diffusion":
-        mode = "train_edge_volatility"
-    return mode in TRAIN_MODES or bool(getattr(args, "resume_ckpt", "").strip())
+    return mode in TRAIN_MODES
 
 
 def resolve_ckpt_dir(args, profile) -> str:
+    """Checkpoint directory. Default is ./checkpoints/{dataset}_{mode}."""
     custom = str(getattr(args, "ckpt_dir", "") or "").strip()
-    return os.path.abspath(custom or default_ckpt_dir(profile, args))
+    if custom:
+        return os.path.abspath(custom)
+    return os.path.abspath(os.path.join("./checkpoints", f"{profile.key}_{args.mode}"))
 
 
 def module_state_dict(module) -> dict[str, torch.Tensor] | None:
     if module is None:
         return None
     mod = module.module if hasattr(module, "module") else module
-    return {k: v.detach().cpu().clone() for k, v in mod.state_dict().items()}
+    return {k: v.detach().cpu().clone() for (k, v) in mod.state_dict().items()}
 
 
 def capture_rng_states() -> dict[str, Any]:
@@ -218,7 +120,6 @@ def build_checkpoint_payload(
         payload["denoise_optimizer_state_dict"] = denoise_optimizer.state_dict()
     if extra:
         payload.update(extra)
-    # test_print 兼容旧字段
     payload["state_dict"] = payload["model_state_dict"]
     return payload
 
@@ -246,7 +147,7 @@ def save_checkpoint_file(path: str, payload: dict[str, Any]) -> str:
 
 
 class CheckpointManager:
-    """训练过程检查点管理：best / last / 可选每 epoch。"""
+    """Writes best.pt, last.pt, and an optional per-epoch file."""
 
     def __init__(self, args, profile):
         self.args = args
@@ -346,16 +247,15 @@ class CheckpointManager:
             if val_loss is None:
                 return False
             vloss = float(val_loss)
-            # nan/inf must not beat a finite best (IEEE: nan comparisons are always False).
             if not math.isfinite(vloss):
                 return False
-            if vloss >= self.best_val_loss - 1e-8:
+            if vloss >= self.best_val_loss - 1e-08:
                 return False
             self.best_val_loss = vloss
             self.best_epoch = int(epoch)
             val_sum = (
-                (float(val_acc) + float(val_mcc))
-                if (val_acc is not None and val_mcc is not None)
+                float(val_acc) + float(val_mcc)
+                if val_acc is not None and val_mcc is not None
                 else None
             )
             if val_sum is not None:
@@ -374,7 +274,7 @@ class CheckpointManager:
             if val_acc is None or val_mcc is None:
                 return False
             val_sum = float(val_acc) + float(val_mcc)
-            if val_sum <= self.best_val_acc_plus_mcc + 1e-8:
+            if val_sum <= self.best_val_acc_plus_mcc + 1e-08:
                 return False
             self.best_val_acc_plus_mcc = val_sum
             self.best_epoch = int(epoch)
@@ -452,7 +352,10 @@ class CheckpointManager:
             epoch=epoch,
             tag=f"epoch-{epoch:03d}",
             model=model,
-            metrics={"best_epoch": self.best_epoch, "best_val_acc_plus_mcc": self.best_val_acc_plus_mcc},
+            metrics={
+                "best_epoch": self.best_epoch,
+                "best_val_acc_plus_mcc": self.best_val_acc_plus_mcc,
+            },
             edge_operator=edge_operator,
             edge_operator_type=edge_operator_type,
             edge_operator_aux=edge_operator_aux,
@@ -468,7 +371,9 @@ class CheckpointManager:
             "profile_key": self.profile.key,
             "mode": self.args.mode,
             "seed": int(getattr(self.args, "seed", 42)),
-            "ckpt_dir": self.ckpt_dir,
+            "ckpt_dir": os.path.relpath(
+                self.ckpt_dir, os.environ.get("DUAL_TF_MODEL_DIR", os.getcwd())
+            ),
             "args": namespace_to_dict(self.args),
             "best_metrics": self.best_metrics,
             "updated_at": datetime.now().isoformat(),
@@ -504,32 +409,28 @@ def _filter_compatible_state(
             skipped.append(key)
             continue
         filtered[key] = value
-    return filtered, skipped
+    return (filtered, skipped)
 
 
 def _load_module_state(module, state_dict: dict[str, torch.Tensor] | None, name: str) -> None:
     if module is None or not state_dict:
         return
     mod = module.module if hasattr(module, "module") else module
-    state_dict, legacy_dropped = strip_legacy_unused_state_keys(state_dict)
     try:
         mod.load_state_dict(state_dict, strict=True)
     except RuntimeError:
-        filtered, skipped = _filter_compatible_state(module, state_dict)
+        (filtered, skipped) = _filter_compatible_state(module, state_dict)
         incompatible = mod.load_state_dict(filtered, strict=False)
         print(
-            f"[CKPT] loaded {name} (shape-filtered={len(skipped)}, "
-            f"legacy-dropped={len(legacy_dropped)}, "
-            f"missing={len(incompatible.missing_keys)}, unexpected={len(incompatible.unexpected_keys)})"
+            f"[CKPT] loaded {name} (shape-filtered={len(skipped)}, missing={len(incompatible.missing_keys)}, unexpected={len(incompatible.unexpected_keys)})"
         )
         if skipped:
-            print(f"[CKPT] skipped shape-mismatch keys: {', '.join(skipped[:8])}"
-                  + (" ..." if len(skipped) > 8 else ""))
+            print(
+                f"[CKPT] skipped shape-mismatch keys: {', '.join(skipped[:8])}"
+                + (" ..." if len(skipped) > 8 else "")
+            )
         return
-    if legacy_dropped:
-        print(f"[CKPT] loaded {name} (legacy-dropped={len(legacy_dropped)})")
-    else:
-        print(f"[CKPT] loaded {name}")
+    print(f"[CKPT] loaded {name}")
 
 
 def apply_checkpoint_to_modules(
@@ -547,20 +448,25 @@ def apply_checkpoint_to_modules(
     model_sd = ckpt.get("model_state_dict") or ckpt.get("state_dict") or ckpt.get("model")
     _load_module_state(model, model_sd, "model")
     _load_module_state(edge_operator, ckpt.get("edge_operator_state_dict"), "edge_operator")
-    _load_module_state(edge_operator_type, ckpt.get("edge_operator_type_state_dict"), "edge_operator_type")
-    _load_module_state(edge_operator_aux, ckpt.get("edge_operator_aux_state_dict"), "edge_operator_aux")
-    _load_module_state(edge_operator_aux_type, ckpt.get("edge_operator_aux_type_state_dict"), "edge_operator_aux_type")
-
+    _load_module_state(
+        edge_operator_type, ckpt.get("edge_operator_type_state_dict"), "edge_operator_type"
+    )
+    _load_module_state(
+        edge_operator_aux, ckpt.get("edge_operator_aux_state_dict"), "edge_operator_aux"
+    )
+    _load_module_state(
+        edge_operator_aux_type,
+        ckpt.get("edge_operator_aux_type_state_dict"),
+        "edge_operator_aux_type",
+    )
     if model_optimizer is not None and ckpt.get("model_optimizer_state_dict"):
         model_optimizer.load_state_dict(ckpt["model_optimizer_state_dict"])
         print("[CKPT] loaded model optimizer")
     if denoise_optimizer is not None and ckpt.get("denoise_optimizer_state_dict"):
         denoise_optimizer.load_state_dict(ckpt["denoise_optimizer_state_dict"])
         print("[CKPT] loaded denoise optimizer")
-
     if restore_rng:
         restore_rng_states(ckpt.get("rng_states"))
-
     metrics = ckpt.get("metrics") or {}
     info = {
         "epoch": int(ckpt.get("epoch", 0)),
@@ -588,16 +494,15 @@ def maybe_resume_from_args(
     denoise_optimizer=None,
     ckpt_manager: CheckpointManager | None = None,
 ) -> tuple[int, dict[str, Any]]:
-    """若指定 --resume_ckpt，加载权重/优化器并返回 (start_epoch, resume_info)。"""
+    """Load --resume_ckpt into the model and optimizer. Returns (start_epoch, info)."""
     resume_path = str(getattr(args, "resume_ckpt", "") or "").strip()
     if not resume_path:
-        return 1, {}
+        return (1, {})
     resume_path = os.path.abspath(resume_path)
     ckpt = load_checkpoint(resume_path, map_location="cpu")
     if ckpt.get("profile_key") and ckpt["profile_key"] != profile.key:
         print(
-            f"[CKPT][WARN] checkpoint profile={ckpt.get('profile_key')} "
-            f"!= current {profile.key}; continue anyway."
+            f"[CKPT][WARN] checkpoint profile={ckpt.get('profile_key')} != current {profile.key}; continue anyway."
         )
     weights_only = bool(getattr(args, "resume_weights_only", False))
     info = apply_checkpoint_to_modules(
@@ -607,13 +512,9 @@ def maybe_resume_from_args(
         edge_operator_type=edge_operator_type,
         edge_operator_aux=edge_operator_aux,
         edge_operator_aux_type=edge_operator_aux_type,
-        model_optimizer=(None if weights_only else model_optimizer),
-        denoise_optimizer=(None if weights_only else denoise_optimizer),
-        restore_rng=(
-            False
-            if weights_only
-            else bool(getattr(args, "restore_rng_on_resume", True))
-        ),
+        model_optimizer=None if weights_only else model_optimizer,
+        denoise_optimizer=None if weights_only else denoise_optimizer,
+        restore_rng=not weights_only,
     )
     if weights_only:
         start_epoch = 1
@@ -623,26 +524,24 @@ def maybe_resume_from_args(
             ckpt_manager.best_val_loss = float("inf")
             ckpt_manager.best_metrics = {}
         print(
-            f"[CKPT] resume_weights_only from {resume_path} "
-            f"(model only, start_epoch=1, fresh optim/ES)",
+            f"[CKPT] resume_weights_only from {resume_path} (model only, start_epoch=1, fresh optim/ES)",
             flush=True,
         )
-        return start_epoch, info
+        return (start_epoch, info)
     start_epoch = int(info["epoch"]) + 1
     if ckpt_manager is not None:
         ckpt_manager.best_epoch = int(info.get("best_epoch") or info["epoch"])
         ckpt_manager.best_val_acc_plus_mcc = float(info.get("best_val_acc_plus_mcc", float("-inf")))
         ckpt_manager.best_metrics = dict(info.get("metrics") or {})
     print(f"[CKPT] resume from {resume_path} -> start_epoch={start_epoch}")
-    return start_epoch, info
+    return (start_epoch, info)
 
 
 def load_model_state_for_eval(model, ckpt_path: str, device) -> None:
-    """test_print 等评估场景：从 best.pt / last.pt / 旧格式加载 model 权重。"""
+    """Load model weights from best.pt, last.pt, or an older checkpoint for evaluation."""
     ckpt = load_checkpoint(ckpt_path, map_location=device)
     model_sd = ckpt.get("model_state_dict") or ckpt.get("state_dict") or ckpt.get("model")
     if model_sd is None:
-        cleaned, _ = strip_legacy_unused_state_keys(ckpt)
-        model.load_state_dict(cleaned, strict=True)
+        model.load_state_dict(ckpt, strict=True)
     else:
         _load_module_state(model, model_sd, "model")

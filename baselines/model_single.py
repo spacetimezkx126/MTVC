@@ -3,14 +3,15 @@ LightQuant single-stock price models (LSTM / ALSTM / BiLSTM / Adv-ALSTM / DTML).
 
 LSTM/ALSTM/BiLSTM from LightQuant; Adv-ALSTM from Adv-ALSTM-master; DTML from DTML-pytorch-main.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class LSTM(nn.Module):
+
     def __init__(
         self,
         input_size: int = 3,
@@ -25,22 +26,28 @@ class LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.batch_first = batch_first
         self.rnn = nn.LSTM(
-            input_size, hidden_size, num_layers=num_layers,
-            batch_first=batch_first, dropout=dropout if num_layers > 1 else 0.0,
+            input_size,
+            hidden_size,
+            num_layers=num_layers,
+            batch_first=batch_first,
+            dropout=dropout if num_layers > 1 else 0.0,
         )
         self.bn = nn.BatchNorm1d(hidden_size)
         self.linear = nn.Linear(hidden_size, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size, device=x.device, dtype=x.dtype)
+        h0 = torch.zeros(
+            self.num_layers, x.size(0), self.hidden_size, device=x.device, dtype=x.dtype
+        )
         c0 = torch.zeros_like(h0)
-        out, _ = self.rnn(x, (h0, c0))
+        (out, _) = self.rnn(x, (h0, c0))
         out = out[:, -1, :] if self.batch_first else out[-1, :, :]
         out = self.bn(out)
         return torch.sigmoid(self.linear(out))
 
 
 class ALSTM(nn.Module):
+
     def __init__(
         self,
         input_size: int,
@@ -53,11 +60,11 @@ class ALSTM(nn.Module):
     ):
         super().__init__()
         self.encoder_rnn = nn.LSTM(
-            input_size, hidden_size, num_layers, batch_first=batch_first, dropout=dropout,
+            input_size, hidden_size, num_layers, batch_first=batch_first, dropout=dropout
         )
         self.encoder_bn = nn.BatchNorm1d(hidden_size)
         self.decoder_rnn = nn.LSTM(
-            hidden_size, hidden_size, num_layers, batch_first=batch_first, dropout=dropout,
+            hidden_size, hidden_size, num_layers, batch_first=batch_first, dropout=dropout
         )
         self.decoder_bn = nn.BatchNorm1d(hidden_size)
         self.attention = nn.Linear(hidden_size * 2, attention_size)
@@ -80,16 +87,17 @@ class ALSTM(nn.Module):
         return context
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        encoder_outputs, (hidden, cell) = self.encoder_rnn(x)
+        (encoder_outputs, (hidden, cell)) = self.encoder_rnn(x)
         encoder_outputs = self.encoder_bn(encoder_outputs.transpose(1, 2)).transpose(1, 2)
         context = self._attention_layer(hidden[-1], encoder_outputs)
-        decoder_output, _ = self.decoder_rnn(context.unsqueeze(1), (hidden, cell))
+        (decoder_output, _) = self.decoder_rnn(context.unsqueeze(1), (hidden, cell))
         decoder_output = self.decoder_bn(decoder_output.transpose(1, 2)).transpose(1, 2)
         decoder_output = self.dropout(decoder_output)
         return torch.sigmoid(self.fc_out(decoder_output.squeeze(1)))
 
 
 class BiLSTM(nn.Module):
+
     def __init__(
         self,
         input_size: int = 3,
@@ -104,8 +112,12 @@ class BiLSTM(nn.Module):
         self.hidden_size = hidden_size
         self.batch_first = batch_first
         self.rnn = nn.LSTM(
-            input_size, hidden_size, num_layers=num_layers,
-            batch_first=batch_first, dropout=dropout, bidirectional=True,
+            input_size,
+            hidden_size,
+            num_layers=num_layers,
+            batch_first=batch_first,
+            dropout=dropout,
+            bidirectional=True,
         )
         self.bn = nn.BatchNorm1d(hidden_size * 2)
         self.dropout_layer = nn.Dropout(dropout)
@@ -113,9 +125,11 @@ class BiLSTM(nn.Module):
         self.linear2 = nn.Linear(128, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size, device=x.device, dtype=x.dtype)
+        h0 = torch.zeros(
+            self.num_layers * 2, x.size(0), self.hidden_size, device=x.device, dtype=x.dtype
+        )
         c0 = torch.zeros_like(h0)
-        out, _ = self.rnn(x, (h0, c0))
+        (out, _) = self.rnn(x, (h0, c0))
         out = out[:, -1, :] if self.batch_first else out[-1, :, :]
         out = self.bn(out)
         out = self.dropout_layer(out)
@@ -156,7 +170,7 @@ class AdvALSTM(nn.Module):
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Return fea_con: concat(last hidden state, attention context)."""
         mapped = torch.tanh(self.in_fc(x))
-        outputs, _ = self.lstm(mapped)
+        (outputs, _) = self.lstm(mapped)
         a_laten = torch.tanh(self.att_W(outputs))
         a_scores = self.att_u(a_laten).squeeze(-1)
         a_alphas = F.softmax(a_scores, dim=1)
@@ -168,17 +182,12 @@ class AdvALSTM(nn.Module):
         return torch.sigmoid(self.out_fc(fea_con).squeeze(-1))
 
     def _weighted_bce(
-        self,
-        prediction: torch.Tensor,
-        labels: torch.Tensor,
-        pos_weight: float | None,
+        self, prediction: torch.Tensor, labels: torch.Tensor, pos_weight: float | None
     ) -> torch.Tensor:
         if pos_weight is None or pos_weight <= 0:
             return F.binary_cross_entropy(prediction, labels)
         weight = torch.where(
-            labels >= 0.5,
-            torch.full_like(labels, pos_weight),
-            torch.ones_like(labels),
+            labels >= 0.5, torch.full_like(labels, pos_weight), torch.ones_like(labels)
         )
         return F.binary_cross_entropy(prediction, labels, weight=weight)
 
@@ -186,18 +195,12 @@ class AdvALSTM(nn.Module):
         return self.out_fc.weight.pow(2).sum() + self.out_fc.bias.pow(2).sum()
 
     def compute_loss(
-        self,
-        x: torch.Tensor,
-        labels: torch.Tensor,
-        pos_weight: float | None = None,
+        self, x: torch.Tensor, labels: torch.Tensor, pos_weight: float | None = None
     ) -> torch.Tensor:
         fea_con = self.encode(x)
         clean_pred = torch.sigmoid(self.out_fc(fea_con).squeeze(-1))
         clean_loss = self._weighted_bce(clean_pred, labels, pos_weight)
-
-        grad = torch.autograd.grad(
-            clean_loss, fea_con, retain_graph=True, create_graph=True,
-        )[0]
+        grad = torch.autograd.grad(clean_loss, fea_con, retain_graph=True, create_graph=True)[0]
         delta = F.normalize(grad, p=2, dim=1)
         adv_fea = fea_con + self.adv_eps * delta
         adv_pred = torch.sigmoid(self.out_fc(adv_fea).squeeze(-1))
@@ -214,22 +217,19 @@ class TimeAxisAttention(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, num_layers: int):
         super().__init__()
         self.lstm = nn.LSTM(
-            input_size, hidden_size, num_layers,
-            batch_first=True, bidirectional=False,
+            input_size, hidden_size, num_layers, batch_first=True, bidirectional=False
         )
         self.lnorm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, rt_attn: bool = False):
-        # x: (batch, window, features)
-        o, (h, _) = self.lstm(x)
-        # dtml.ipynb: score = bmm(o, h.permute(1, 2, 0)); softmax over window dim
+        (o, (h, _)) = self.lstm(x)
         score = torch.bmm(o, h.permute(1, 2, 0))
         tx_attn = F.softmax(score, dim=1).squeeze(-1)
         context = torch.bmm(tx_attn.unsqueeze(1), o).squeeze(1)
         normed_context = self.lnorm(context)
         if rt_attn:
-            return normed_context, tx_attn
-        return normed_context, None
+            return (normed_context, tx_attn)
+        return (normed_context, None)
 
 
 class DataAxisAttention(nn.Module):
@@ -248,23 +248,17 @@ class DataAxisAttention(nn.Module):
         self.drop_out = nn.Dropout(drop_rate)
 
     def forward(
-        self,
-        hm: torch.Tensor,
-        key_padding_mask: torch.Tensor | None = None,
-        rt_attn: bool = False,
+        self, hm: torch.Tensor, key_padding_mask: torch.Tensor | None = None, rt_attn: bool = False
     ):
-        # hm: (batch, num_stocks, hidden)
         residual = hm
-        hm_hat, dx_attn = self.multi_attn(
-            hm, hm, hm, key_padding_mask=key_padding_mask,
-        )
+        (hm_hat, dx_attn) = self.multi_attn(hm, hm, hm, key_padding_mask=key_padding_mask)
         hm_hat = self.lnorm1(residual + self.drop_out(hm_hat))
         residual = hm_hat
         hp = torch.tanh(hm + hm_hat + self.mlp(hm + hm_hat))
         hp = self.lnorm2(residual + self.drop_out(hp))
         if rt_attn:
-            return hp, dx_attn
-        return hp, None
+            return (hp, dx_attn)
+        return (hp, None)
 
 
 class DTML(nn.Module):
@@ -294,9 +288,7 @@ class DTML(nn.Module):
         self.linear = nn.Linear(hidden_dim, 1)
 
     def _index_sequence(
-        self,
-        x: torch.Tensor,
-        valid_mask: torch.Tensor | None = None,
+        self, x: torch.Tensor, valid_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
         """Return index series (B, T, F); cross-section mean uses valid slots only."""
         if self.market_index >= 0:
@@ -310,33 +302,23 @@ class DTML(nn.Module):
         return summed / count
 
     def forward(
-        self,
-        x: torch.Tensor,
-        valid_mask: torch.Tensor | None = None,
-        rt_attn: bool = False,
+        self, x: torch.Tensor, valid_mask: torch.Tensor | None = None, rt_attn: bool = False
     ) -> torch.Tensor:
-        batch_size, seq_len, num_stocks, n_feat = x.size()
-        # stocks: (B, N, T, F) -> (B*N, T, F)
+        (batch_size, seq_len, num_stocks, n_feat) = x.size()
         stocks = x.permute(0, 2, 1, 3).reshape(batch_size * num_stocks, seq_len, n_feat)
-        c_stocks, _ = self.txattention(stocks, rt_attn=rt_attn)
+        (c_stocks, _) = self.txattention(stocks, rt_attn=rt_attn)
         c_stocks = c_stocks.view(batch_size, num_stocks, -1)
-
         index_seq = self._index_sequence(x, valid_mask=valid_mask)
-        c_index, _ = self.txattention(index_seq, rt_attn=rt_attn)
+        (c_index, _) = self.txattention(index_seq, rt_attn=rt_attn)
         c_index = c_index.unsqueeze(1)
-
         hm = c_stocks + self.beta * c_index
         attn_mask = None
         if valid_mask is not None:
             attn_mask = ~valid_mask.bool()
-        hp, _ = self.dxattention(hm, key_padding_mask=attn_mask, rt_attn=rt_attn)
+        (hp, _) = self.dxattention(hm, key_padding_mask=attn_mask, rt_attn=rt_attn)
         return self.linear(hp).squeeze(-1)
 
-    def predict(
-        self,
-        x: torch.Tensor,
-        valid_mask: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+    def predict(self, x: torch.Tensor, valid_mask: torch.Tensor | None = None) -> torch.Tensor:
         return torch.sigmoid(self.forward(x, valid_mask=valid_mask))
 
 
@@ -352,7 +334,6 @@ def build_single_model(model_name: str, **kwargs) -> nn.Module:
     batch_first = bool(kwargs.get("batch_first", True))
     attention_size = int(kwargs.get("attention_size", 128))
     n_heads = int(kwargs.get("n_heads", 4))
-
     if name == "lstm":
         return LSTM(input_size, hidden_size, num_layers, 1, dropout, batch_first)
     if name == "alstm":

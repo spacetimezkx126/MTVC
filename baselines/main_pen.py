@@ -1,14 +1,13 @@
-#!/usr/bin/env python3
 """
-Train / eval PEN on Pattern_Mining datasets.
+Train / eval PEN on MTVC datasets.
 
 Split-lookback flat tensors (CminCnPenDataset) for CMIN-CN / CSMD50 /
 CSMD300 / CMIN-US; auto-detected from ``--dataset_root``.
 
 Model: model_pen.PENModel (PEN-main MEL -> MSIN -> VMD -> ATA).
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import argparse
 import csv
 import json
@@ -19,14 +18,12 @@ import random
 import sys
 from collections import defaultdict
 from datetime import datetime
-
 import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-
 from model_pen import PENModel, build_pen_model
-from pen1_data import (
+from common import (
     DATASET_SPLITS,
     Pen1Dataset,
     ROLE_SPLIT_MODES,
@@ -45,8 +42,15 @@ from pen1_data import (
     set_seed,
     tokenize_text,
 )
-from pen1_train import evaluate as evaluate_flat
-from pen1_train import kl_lambda_at_step, load_ckpt, save_ckpt, train_one_epoch as train_one_epoch_flat
+from common import evaluate as evaluate_flat
+from common import (
+    capture_evaluation_state,
+    restore_evaluation_state,
+    kl_lambda_at_step,
+    load_ckpt,
+    save_ckpt,
+    train_one_epoch as train_one_epoch_flat,
+)
 from oversample_utils import apply_oversample_to_dataset_samples
 
 LOGGER = logging.getLogger("pen")
@@ -73,8 +77,6 @@ def log_info(msg: str, *args) -> None:
     LOGGER.info(msg, *args)
 
 
-# --- Split-lookback flat PEN dataset (CMIN-CN / CSMD / CMIN-US; same sample rules) ---
-
 SEG_LENGTH = 10
 
 
@@ -88,7 +90,6 @@ def split_lookback_periods(kind: str) -> dict[str, tuple[str, str]]:
 
 
 CMIN_CN_PERIODS = split_lookback_periods("CMIN-CN")
-
 _CMIN_CN_DATA_CACHE: dict[tuple[str, str, str], dict] = {}
 
 
@@ -151,7 +152,9 @@ def load_cmin_cn_news(news_dir: str, news_type_dir: str, source_mode: str | None
     return news_texts
 
 
-def load_cmin_cn_data(dataset_root: str, news_source: str = "wind", use_volume: bool = False) -> dict:
+def load_cmin_cn_data(
+    dataset_root: str, news_source: str = "wind", use_volume: bool = False
+) -> dict:
     """Load price + news for split-lookback sampling (auto-detect dataset kind)."""
     root = os.path.abspath(dataset_root)
     kind = detect_dataset_kind(root)
@@ -164,12 +167,14 @@ def load_cmin_cn_data(dataset_root: str, news_source: str = "wind", use_volume: 
     cache_key = (root, kind, src_key, bool(use_volume))
     if cache_key in _CMIN_CN_DATA_CACHE:
         return _CMIN_CN_DATA_CACHE[cache_key]
-
     price_dir = os.path.join(root, "price", "preprocessed")
-    stock_data, label, _raw_line = load_price(price_dir, use_volume=use_volume)
-    if kind in ("CSMD50", "CSMD300"):
+    (stock_data, label, _raw_line) = load_price(price_dir, use_volume=use_volume)
+    if kind == "CSMD300":
+        from common import load_raw_csmd_news
+        news_texts = load_raw_csmd_news(os.path.join(root, "news"))
+    elif kind == "CSMD50":
         llm_dir = os.path.join(root, "llm_extract", "news_type")
-        news_texts, _news_types = load_news_and_types_csmd(llm_dir)
+        (news_texts, _news_types) = load_news_and_types_csmd(llm_dir)
     else:
         news_dir = os.path.join(root, "news")
         news_type_dir = os.path.join(root, "llm_extract", "news_type")
@@ -209,12 +214,13 @@ def enumerate_cmin_cn_samples(
 ) -> list[tuple[str, str, float]]:
     if periods is None:
         periods = split_lookback_periods(kind)
-    start, end = periods[mode]
+    (start, end) = periods[mode]
     sm = str(split_mode or "contiguous").strip().lower()
     if sm in ROLE_SPLIT_MODES:
-        valid_dates = [d for d in _global_trading_dates(stock_data) if date_in_mode(d, mode, kind, sm)]
+        valid_dates = [
+            d for d in _global_trading_dates(stock_data) if date_in_mode(d, mode, kind, sm)
+        ]
         defer = quarter_rr_311_defer_months(kind) if sm == "quarter_rr_311" else None
-        # keep_tail=True matches prior pen packing; July deferred for qrr311 order.
         valid_dates = pack_valid_dates_flat(
             valid_dates, seg_length, keep_tail=True, defer_months=defer
         )
@@ -222,15 +228,12 @@ def enumerate_cmin_cn_samples(
         valid_dates = [d for d in _global_trading_dates(stock_data) if start <= d <= end]
     if not valid_dates:
         return []
-
     companies = sorted(stock_data.keys())
     comp_pos = {
-        c: {d: i for i, d in enumerate(sorted(stock_data.get(c, {}).keys()))}
-        for c in companies
+        c: {d: i for (i, d) in enumerate(sorted(stock_data.get(c, {}).keys()))} for c in companies
     }
     samples: list[tuple[str, str, float]] = []
     seen: set[tuple[str, str]] = set()
-
     for target_date in valid_dates:
         for comp in companies:
             pm = comp_pos.get(comp, {})
@@ -283,22 +286,21 @@ class CminCnPenDataset(Pen1Dataset):
         self.use_strong_only = use_strong_only
         self.news_source = resolve_cmin_cn_news_source(news_source) or "all"
         periods = split_lookback_periods(self.dataset_kind)
-        self.start_date, self.end_date = periods[mode]
-
-        all_data = load_cmin_cn_data(self.dataset_root, news_source=news_source, use_volume=self.use_volume)
+        (self.start_date, self.end_date) = periods[mode]
+        all_data = load_cmin_cn_data(
+            self.dataset_root, news_source=news_source, use_volume=self.use_volume
+        )
         self.stock_data = all_data["stock_data"]
         self.label = all_data["label"]
         self.news_texts = all_data["news_texts"]
         self.companies = sorted(self.stock_data.keys())
-        self.company2id = {c: i for i, c in enumerate(self.companies)}
-
+        self.company2id = {c: i for (i, c) in enumerate(self.companies)}
         vocab_path = resolve_vocab_path(self.dataset_root)
         self.vocab = pkl.load(open(vocab_path, "rb"))
         self.vocab_pad_id = int(self.vocab.get("<pad>", 0))
         self.vocab_unk_id = int(self.vocab.get("<unk>", 0))
         self.tokenize_mode = infer_tokenize_mode(self.dataset_root)
         self.use_char_tokenize = self.dataset_kind == "CMIN-CN"
-
         self.prev_date: dict[str, dict[str, str]] = {}
         for comp, day_dict in self.stock_data.items():
             dates_sorted = sorted(day_dict.keys())
@@ -306,7 +308,6 @@ class CminCnPenDataset(Pen1Dataset):
             for i in range(1, len(dates_sorted)):
                 prev_map[dates_sorted[i]] = dates_sorted[i - 1]
             self.prev_date[comp] = prev_map
-
         raw_samples = enumerate_cmin_cn_samples(
             self.stock_data,
             self.label,
@@ -324,12 +325,12 @@ class CminCnPenDataset(Pen1Dataset):
             sample = self._build_sample(comp, td, mv)
             if sample is None:
                 continue
-            if use_strong_only and not sample["strong"]:
+            if use_strong_only and (not sample["strong"]):
                 continue
             self.samples.append(sample)
         if shuffle_build and mode == "train":
             rng.shuffle(self.samples)
-        n_strong = sum(1 for s in self.samples if s["strong"])
+        n_strong = sum((1 for s in self.samples if s["strong"]))
         log_info(
             "CminCnPenDataset %s kind=%s split_mode=%s n=%d strong=%d pw=%d news_k=%d news_source=%s vocab=%s",
             mode,
@@ -363,12 +364,12 @@ class CminCnPenDataset(Pen1Dataset):
     def _text_to_ids(self, text: str, comp: str) -> tuple[list[int], int]:
         if self.use_char_tokenize:
             ids = self._char_ids(text)
-            return ids, (len(ids) - 1 if ids else 0)
+            return (ids, len(ids) - 1 if ids else 0)
         tokens = tokenize_text(text, self.tokenize_mode)[: self.max_n_words]
         if not tokens:
-            return [], 0
+            return ([], 0)
         ids = [int(self.vocab.get(t, self.vocab_unk_id)) for t in tokens]
-        return ids, get_ss_index(tokens, comp)
+        return (ids, get_ss_index(tokens, comp))
 
     def _encode_prev_news(self, texts: list[str], comp: str):
         word_mat = np.zeros((self.max_n_msgs, self.max_n_words), dtype=np.int32)
@@ -376,7 +377,7 @@ class CminCnPenDataset(Pen1Dataset):
         ss_index_vec = np.zeros((self.max_n_msgs,), dtype=np.int32)
         msg_id = 0
         for text in texts[: self.max_n_msgs]:
-            ids, ss_idx = self._text_to_ids(text, comp)
+            (ids, ss_idx) = self._text_to_ids(text, comp)
             if not ids:
                 continue
             n = len(ids)
@@ -384,7 +385,7 @@ class CminCnPenDataset(Pen1Dataset):
             word_mat[msg_id, :n] = ids
             ss_index_vec[msg_id] = ss_idx
             msg_id += 1
-        return word_mat[:msg_id], ss_index_vec[:msg_id], n_word_vec[:msg_id], msg_id
+        return (word_mat[:msg_id], ss_index_vec[:msg_id], n_word_vec[:msg_id], msg_id)
 
     def _build_sample(self, comp: str, target_date_str: str, mv: float):
         day_dict = self.stock_data.get(comp)
@@ -400,7 +401,6 @@ class CminCnPenDataset(Pen1Dataset):
         if pos < self.price_window:
             return None
         last_k = split_dates[pos - self.price_window : pos]
-
         T = self.price_window
         prices = np.zeros((T, self.price_feat_dim), dtype=np.float32)
         ys = np.zeros((T, self.y_size), dtype=np.float32)
@@ -408,7 +408,6 @@ class CminCnPenDataset(Pen1Dataset):
         ss_index = np.zeros((T, self.max_n_msgs), dtype=np.int32)
         n_words = np.zeros((T, self.max_n_msgs), dtype=np.int32)
         n_msgs = np.zeros((T,), dtype=np.int32)
-
         for i, d_str in enumerate(last_k):
             raw = day_dict.get(d_str)
             if raw is None:
@@ -422,15 +421,13 @@ class CminCnPenDataset(Pen1Dataset):
             news_key = target_date_str if i == T - 1 else d_str
             day_texts = self._prev_day_texts(comp, news_key)
             if day_texts:
-                wm, ss, nw, nm = self._encode_prev_news(day_texts, comp)
+                (wm, ss, nw, nm) = self._encode_prev_news(day_texts, comp)
                 if nm > 0:
                     n_msgs[i] = nm
                     word_ids[i, :nm] = wm
                     ss_index[i, :nm] = ss
                     n_words[i, :nm] = nw
-
         ys[T - 1] = np.array(binary_label_cmin(mv), dtype=np.float32)
-
         return {
             "stock_id": self.company2id[comp],
             "company": comp,
@@ -447,11 +444,11 @@ class CminCnPenDataset(Pen1Dataset):
         }
 
 
-CminCnPenDataset.__getitem__ = lambda self, idx: {  # type: ignore[method-assign,return-value]
+CminCnPenDataset.__getitem__ = lambda self, idx: {
     **__pen1_getitem__(self, idx),
     "strong": bool(self.samples[idx]["strong"]),
 }
-CminCnPenDataset.__len__ = lambda self: len(self.samples)  # type: ignore[method-assign]
+CminCnPenDataset.__len__ = lambda self: len(self.samples)
 
 
 def _resolve_news_source(dataset_root: str, news_source: str | None) -> str:
@@ -486,11 +483,13 @@ def _vocab_info(dataset_root: str):
     pad_id = int(vocab.get("<pad>", 0))
     vocab_vals = [int(v) for v in vocab.values() if isinstance(v, (int, np.integer))]
     vocab_size = max(len(vocab), max(vocab_vals) + 1 if vocab_vals else 1, pad_id + 1)
-    return vocab_path, vocab_size, pad_id
+    return (vocab_path, vocab_size, pad_id)
 
 
 def _build_model(vocab_size: int, pad_id: int, args) -> PENModel:
-    price_input_size = getattr(args, "price_input_size", 0) or (4 if getattr(args, "use_volume", False) else 3)
+    price_input_size = getattr(args, "price_input_size", 0) or (
+        4 if getattr(args, "use_volume", False) else 3
+    )
     return build_pen_model(
         vocab_size,
         pad_id=pad_id,
@@ -520,55 +519,64 @@ def _run_flat(args, kind: str, device: torch.device, log_file: str) -> None:
     if args.mode == "stats":
         for split in ("train", "val", "test"):
             ds = _make_flat_dataset(split, args, shuffle_build=False)
-            start, end = split_lookback_periods(kind)[split]
-            strong_n = sum(1 for s in ds.samples if s.get("strong"))
+            (start, end) = split_lookback_periods(kind)[split]
+            strong_n = sum((1 for s in ds.samples if s.get("strong")))
             log_info("[%s] n=%d strong=%d dates %s..%s", split, len(ds), strong_n, start, end)
         return
-
     log_info("building datasets (split-lookback)...")
     train_ds = _make_flat_dataset("train", args, shuffle_build=True)
     apply_oversample_to_dataset_samples(
-        train_ds, str(getattr(args, "train_oversample_extra", "") or ""), log_fn=log_info,
+        train_ds, str(getattr(args, "train_oversample_extra", "") or ""), log_fn=log_info
     )
     val_ds = _make_flat_dataset("val", args, shuffle_build=False)
     test_ds = _make_flat_dataset("test", args, shuffle_build=False)
     log_info("samples train=%d val=%d test=%d", len(train_ds), len(val_ds), len(test_ds))
-
-    vocab_path, vocab_size, pad_id = _vocab_info(args.dataset_root)
+    (vocab_path, vocab_size, pad_id) = _vocab_info(args.dataset_root)
     log_info("vocab=%s size=%d", vocab_path, vocab_size)
-
     loader_kw = dict(num_workers=args.num_workers, collate_fn=lambda b: b)
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, **loader_kw)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, **loader_kw)
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False, **loader_kw)
-
     model = _build_model(vocab_size, pad_id, args).to(device)
-
     if args.mode == "eval":
         ckpt_path = args.ckpt or os.path.join(args.save_dir, f"best_{kind.lower()}.pt")
+        if not os.path.isfile(ckpt_path):
+            raise FileNotFoundError(ckpt_path)
         if os.path.isfile(ckpt_path):
-            state, meta = load_ckpt(ckpt_path, device)
+            (state, meta) = load_ckpt(ckpt_path, device)
             model.load_state_dict(state)
             if "kl_lambda" in meta:
                 model.set_kl_lambda(meta["kl_lambda"])
             log_info("loaded %s", ckpt_path)
         evaluate_flat(model, val_loader, device, args.max_n_days, "VAL", LOGGER, args.strong_eval)
-        evaluate_flat(model, test_loader, device, args.max_n_days, "TEST", LOGGER, args.strong_eval)
+        saved_state = meta.get("test_sampling_state")
+        if saved_state is not None:
+            restore_evaluation_state(saved_state, device)
+        else:
+            LOGGER.warning("Historical checkpoint has no test sampling state; original logged metrics may differ.")
+        result = evaluate_flat(model, test_loader, device, args.max_n_days, "TEST", LOGGER, args.strong_eval)
+        actual = {"loss": float(result[0]), "acc": float(result[1]), "mcc": float(result[2]), "n": int(result[3])}
+        expected = {key: meta.get("test_" + key) for key in ("acc", "mcc", "n")}
+        report = {"actual": actual, "expected": expected,
+                  "delta": {key: actual[key] - expected[key] if expected[key] is not None else None for key in ("acc", "mcc")},
+                  "sampling_state_available": saved_state is not None}
+        if args.evaluation_output:
+            from pathlib import Path
+            output = Path(args.evaluation_output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(report, indent=2) + "\n")
         return
-
     if args.ckpt and os.path.isfile(args.ckpt):
-        state, meta = load_ckpt(args.ckpt, device)
+        (state, meta) = load_ckpt(args.ckpt, device)
         model.load_state_dict(state)
         log_info("loaded init checkpoint %s", args.ckpt)
-
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     os.makedirs(args.save_dir, exist_ok=True)
     global_step = 0
     minimize = args.best_metric == "val_loss"
     best_score = float("inf") if minimize else float("-inf")
-    best_epoch, stale = 0, 0
+    (best_epoch, stale) = (0, 0)
     log_info("training start best_metric=%s save_dir=%s", args.best_metric, args.save_dir)
-
     for epoch in range(1, args.epochs + 1):
         if args.variant_type != "discriminative":
             model.set_kl_lambda(
@@ -577,11 +585,19 @@ def _run_flat(args, kind: str, device: torch.device, log_file: str) -> None:
                 )
             )
         train_one_epoch_flat(
-            model, train_loader, optimizer, device, args.max_n_days,
-            args.grad_clip, epoch, args.log_every, LOGGER, args.strong_eval,
+            model,
+            train_loader,
+            optimizer,
+            device,
+            args.max_n_days,
+            args.grad_clip,
+            epoch,
+            args.log_every,
+            LOGGER,
+            args.strong_eval,
         )
         global_step += max(len(train_loader), 1)
-        val_loss, val_acc, val_mcc, _ = evaluate_flat(
+        (val_loss, val_acc, val_mcc, _) = evaluate_flat(
             model, val_loader, device, args.max_n_days, "VAL", LOGGER, args.strong_eval
         )
         if args.best_metric == "val_loss":
@@ -593,12 +609,18 @@ def _run_flat(args, kind: str, device: torch.device, log_file: str) -> None:
         improved = score < best_score if minimize else score > best_score
         log_info(
             "[Epoch %03d] val_loss=%.6f val_acc=%.4f val_mcc=%.4f %s=%.4f",
-            epoch, val_loss, val_acc, val_mcc, args.best_metric, score,
+            epoch,
+            val_loss,
+            val_acc,
+            val_mcc,
+            args.best_metric,
+            score,
         )
         if improved:
-            best_score, best_epoch, stale = score, epoch, 0
+            (best_score, best_epoch, stale) = (score, epoch, 0)
             ckpt_path = os.path.join(args.save_dir, f"best_{kind.lower()}.pt")
-            test_loss, test_acc, test_mcc, test_n = evaluate_flat(
+            test_sampling_state = capture_evaluation_state(device)
+            (test_loss, test_acc, test_mcc, test_n) = evaluate_flat(
                 model, test_loader, device, args.max_n_days, "TEST", LOGGER, args.strong_eval
             )
             save_ckpt(
@@ -612,10 +634,14 @@ def _run_flat(args, kind: str, device: torch.device, log_file: str) -> None:
                 test_acc=test_acc,
                 test_mcc=test_mcc,
                 test_n=test_n,
+                test_sampling_state=test_sampling_state,
             )
             log_info(
                 "saved best checkpoint epoch=%d %s=%.4f -> %s",
-                epoch, args.best_metric, score, ckpt_path,
+                epoch,
+                args.best_metric,
+                score,
+                ckpt_path,
             )
         else:
             stale += 1
@@ -623,7 +649,6 @@ def _run_flat(args, kind: str, device: torch.device, log_file: str) -> None:
             if stale >= args.es_patience:
                 log_info("early stop at epoch %d", epoch)
                 break
-
     log_info("done best_epoch=%d best_%s=%.4f", best_epoch, args.best_metric, best_score)
 
 
@@ -631,11 +656,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="PEN training (split-lookback flat tensors, all datasets)"
     )
-    parser.add_argument("--dataset_root", type=str, default="./dataset/CMIN-CN")
+    parser.add_argument("--dataset_root", type=str, default="./data/CMIN-CN")
     parser.add_argument("--mode", type=str, default="train", choices=["train", "eval", "stats"])
     parser.add_argument("--batch_size", type=int, default=1280)
     parser.add_argument("--epochs", type=int, default=30)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--grad_clip", type=float, default=15.0)
     parser.add_argument("--seed", type=int, default=666)
     parser.add_argument(
@@ -651,7 +676,9 @@ def main():
         default=True,
         help="True: cudnn deterministic (reproducible). False: seed only, like main.py train.set_all_seeds",
     )
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
+    )
     parser.add_argument("--max_n_days", type=int, default=5)
     parser.add_argument("--use_volume", action="store_true")
     parser.add_argument("--price_input_size", type=int, default=0)
@@ -663,9 +690,16 @@ def main():
     parser.add_argument("--msin_h_size", type=int, default=100)
     parser.add_argument("--h_size", type=int, default=150)
     parser.add_argument("--g_size", type=int, default=50)
-    parser.add_argument("--variant_type", type=str, default="hedge", choices=["hedge", "fund", "tech", "discriminative"])
+    parser.add_argument(
+        "--variant_type",
+        type=str,
+        default="hedge",
+        choices=["hedge", "fund", "tech", "discriminative"],
+    )
     parser.add_argument("--vmd_rec", type=str, default="zh", choices=["zh", "h"])
-    parser.add_argument("--mel_cell_type", type=str, default="gru", choices=["gru", "basic", "ln-lstm"])
+    parser.add_argument(
+        "--mel_cell_type", type=str, default="gru", choices=["gru", "basic", "ln-lstm"]
+    )
     parser.add_argument("--vmd_cell_type", type=str, default="gru", choices=["gru", "ln-lstm"])
     parser.add_argument("--daily_att", type=str, default="y", choices=["y", "g", "none"])
     parser.add_argument("--alpha", type=float, default=0.5)
@@ -692,6 +726,7 @@ def main():
     )
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--ckpt", type=str, default="")
+    parser.add_argument("--evaluation_output", type=str, default="", help="Write independently evaluated metrics and checkpoint differences as JSON.")
     parser.add_argument("--save_dir", type=str, default="./checkpoints/pen1")
     parser.add_argument("--log_dir", type=str, default="./logs/pen1")
     parser.add_argument("--log_file", type=str, default="")
@@ -712,17 +747,22 @@ def main():
     )
     args = parser.parse_args()
     args.news_source = _resolve_news_source(args.dataset_root, args.news_source)
-
     kind = detect_dataset_kind(args.dataset_root)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = args.log_file or (os.path.join(args.log_dir, f"pen_{kind.lower()}_{ts}.log") if args.mode != "stats" else "")
+    log_file = args.log_file or (
+        os.path.join(args.log_dir, f"pen_{kind.lower()}_{ts}.log") if args.mode != "stats" else ""
+    )
     setup_logger(log_file or None)
     set_seed(args.seed, deterministic=bool(args.deterministic))
     LOGGER.info("seed=%d deterministic=%s", int(args.seed), bool(args.deterministic))
     device = torch.device(args.device)
     log_info(
         "pen dataset=%s root=%s device=%s news_source=%s strong_eval=%s",
-        kind, args.dataset_root, device, args.news_source, args.strong_eval,
+        kind,
+        args.dataset_root,
+        device,
+        args.news_source,
+        args.strong_eval,
     )
     _run_flat(args, kind, device, log_file)
 

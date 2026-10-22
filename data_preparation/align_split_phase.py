@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Align train/val/test calendar ranges onto a 10-day window lattice.
 
 Problem
@@ -20,7 +19,7 @@ Window starts = every ``seg_length`` trading days from that anchor forward
 
 Usage
 -----
-  cd MTVC_paper_repro/data_preparation
+  cd MTVC/data_preparation
 
   # Print aligned dates for a requested 3y / 0.5y / 0.5y intent
   python align_split_phase.py \\
@@ -45,8 +44,8 @@ Outputs JSON + human summary with:
   - first trading day / n_days / n_windows / window starts per role
   - verification that val+test window starts lie on the lattice
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import argparse
 import json
 import os
@@ -55,9 +54,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Iterable
 
-
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_REPO = os.path.abspath(os.path.join(_HERE, ".."))  # MTVC_paper_repro
+_REPO = os.path.abspath(os.path.join(_HERE, ".."))
 _MTVC = os.path.join(_REPO, "code", "mtvc")
 
 
@@ -70,7 +68,7 @@ def _setup_path() -> None:
 
 @dataclass
 class RoleRange:
-    start: str  # YYYY-MM-DD inclusive (calendar intent)
+    start: str
     end: str
 
 
@@ -95,8 +93,8 @@ def _parse_range(s: str) -> RoleRange:
     s = s.strip()
     if ":" not in s:
         raise argparse.ArgumentTypeError(f"range must be START:END, got {s!r}")
-    a, b = s.split(":", 1)
-    a, b = a.strip(), b.strip()
+    (a, b) = s.split(":", 1)
+    (a, b) = (a.strip(), b.strip())
     for x in (a, b):
         datetime.strptime(x, "%Y-%m-%d")
     if a > b:
@@ -106,11 +104,11 @@ def _parse_range(s: str) -> RoleRange:
 
 def _default_root(dataset: str) -> str:
     roots = {
-        "csmd50": "/home/zhaokx/Pattern/Pattern_Mining/dataset/CSMD50",
-        "csmd300": "/home/zhaokx/Pattern/Pattern_Mining/dataset/CSMD300",
-        "sse50": "/home/zhaokx/Pattern/Pattern_Mining/dataset/sse50_news",
-        "massive": "/home/zhaokx/Pattern/Pattern_Mining/dataset/massive_data",
-        "stocknet": "/home/zhaokx/Pattern/Pattern_Mining/dataset/stocknet",
+        "csmd50": "data/CSMD50",
+        "csmd300": "data/CSMD300",
+        "sse50": "data/sse50_news",
+        "massive": "data/massive_data",
+        "stocknet": "data/stocknet",
     }
     if dataset not in roots:
         raise ValueError(f"unknown dataset {dataset}; known={sorted(roots)}")
@@ -118,19 +116,12 @@ def _default_root(dataset: str) -> str:
 
 
 def _load_trading_days(
-    dataset: str,
-    root: str,
-    cal_start: str,
-    cal_end: str,
-    *,
-    csmd_news_source: str = "raw",
+    dataset: str, root: str, cal_start: str, cal_end: str, *, csmd_news_source: str = "raw"
 ) -> list[str]:
     """All trading days in [cal_start, cal_end] via MarketWindowDataset test mode."""
     from data import MarketWindowDataset, get_profile
 
     profile = get_profile(dataset)
-    # Dummy train/val so builder accepts; put the span on test.
-    # Use a tiny prior train/val that does not need to be in-range for listing.
     split = {
         "train_start": "2000-01-01",
         "train_end": "2000-06-30",
@@ -174,12 +165,10 @@ def _lattice_starts(days: list[str], anchor: str, seg: int) -> list[str]:
         raise ValueError(f"anchor {anchor} not in trading calendar")
     i0 = days.index(anchor)
     out = []
-    # forward
     i = i0
     while i < len(days):
         out.append(days[i])
         i += seg
-    # backward (exclusive of anchor already listed)
     i = i0 - seg
     pref = []
     while i >= 0:
@@ -188,15 +177,16 @@ def _lattice_starts(days: list[str], anchor: str, seg: int) -> list[str]:
     return list(reversed(pref)) + out
 
 
-def _snap_start_to_lattice(days: list[str], requested_start: str, lattice: set[str] | Iterable[str]) -> str:
+def _snap_start_to_lattice(
+    days: list[str], requested_start: str, lattice: set[str] | Iterable[str]
+) -> str:
     """First trading day >= requested_start that is a lattice window start."""
     lat = set(lattice)
     for d in days:
         if d >= requested_start and d in lat:
             return d
     raise ValueError(
-        f"no lattice window start on/after {requested_start} "
-        f"(last day {days[-1] if days else None})"
+        f"no lattice window start on/after {requested_start} (last day {(days[-1] if days else None)})"
     )
 
 
@@ -254,17 +244,14 @@ def align_split(
     days = _load_trading_days(dataset, root, cal_lo, cal_hi, csmd_news_source=csmd_news_source)
     if not days:
         raise RuntimeError(f"empty trading calendar for {dataset} in [{cal_lo},{cal_hi}]")
-
     roles_req = {"train": train, "val": val, "test": test}
     snap_set = {str(x).strip() for x in snap_roles if str(x).strip()}
     bad = snap_set - {"train", "val", "test"}
     if bad:
         raise ValueError(f"bad snap_roles {bad}")
-
     if anchor:
         anc = anchor
         if anc not in days:
-            # allow calendar date → first trading on/after
             ft = _first_on_or_after(days, anc)
             if ft is None:
                 raise ValueError(f"anchor {anchor} beyond calendar")
@@ -279,13 +266,9 @@ def align_split(
         if anc not in days:
             anc = _first_on_or_after(days, "2024-01-03") or days[0]
     else:
-        # self-lattice from train first trading day
         anc = _first_on_or_after(days, train.start) or days[0]
-
     lat_list = _lattice_starts(days, anc, seg_length)
     lat_set = set(lat_list)
-
-    # Resolve each role start
     order = ["train", "val", "test"]
     snapped_starts: dict[str, str] = {}
     for role in order:
@@ -297,12 +280,10 @@ def align_split(
             if ft is None:
                 raise ValueError(f"{role}: no trading day on/after {rr.start}")
             snapped_starts[role] = ft
-
     aligned: dict[str, AlignedRole] = {}
     for i, role in enumerate(order):
         rr = roles_req[role]
         a_start = snapped_starts[role]
-        # tentative end
         a_end_td = _last_on_or_before(days, rr.end)
         if a_end_td is None or a_end_td < a_start:
             raise ValueError(f"{role}: empty after snap (start={a_start}, req_end={rr.end})")
@@ -317,17 +298,16 @@ def align_split(
                 a_end_td = min(a_end_td, prev)
         role_days = _days_in_closed(days, a_start, a_end_td)
         if end_mode == "complete_windows" and len(role_days) >= seg_length:
-            n_keep = (len(role_days) // seg_length) * seg_length
+            n_keep = len(role_days) // seg_length * seg_length
             role_days = role_days[:n_keep]
             a_end_td = role_days[-1]
         wins = _chunk_windows(role_days, seg_length)
-        # on_lattice: role head sits on the global anchor lattice
-        on_lat = a_start in lat_set and all(w[0] in lat_set for w in wins if len(w) == seg_length)
+        on_lat = a_start in lat_set and all((w[0] in lat_set for w in wins if len(w) == seg_length))
         aligned[role] = AlignedRole(
             role=role,
             requested_start=rr.start,
             requested_end=rr.end,
-            aligned_start=a_start,  # safe CLI: use trading day itself as start
+            aligned_start=a_start,
             aligned_end=a_end_td,
             first_trading_day=role_days[0],
             last_trading_day=role_days[-1],
@@ -338,15 +318,15 @@ def align_split(
             last_window=list(wins[-1]) if wins else [],
             on_lattice=bool(on_lat),
         )
-
-    # Cross-check: no overlapping trading days
-    sets = {r: set(_days_in_closed(days, aligned[r].aligned_start, aligned[r].aligned_end)) for r in order}
+    sets = {
+        r: set(_days_in_closed(days, aligned[r].aligned_start, aligned[r].aligned_end))
+        for r in order
+    }
     overlap = {
         "train∩val": sorted(sets["train"] & sets["val"]),
         "val∩test": sorted(sets["val"] & sets["test"]),
         "train∩test": sorted(sets["train"] & sets["test"]),
     }
-
     cli = {
         "train_start": aligned["train"].aligned_start,
         "train_end": aligned["train"].aligned_end,
@@ -355,7 +335,6 @@ def align_split(
         "test_start": aligned["test"].aligned_start,
         "test_end": aligned["test"].aligned_end,
     }
-
     return {
         "dataset": dataset,
         "root": root,
@@ -366,16 +345,15 @@ def align_split(
         "lattice_starts_head": lat_list[:8],
         "lattice_starts_tail": lat_list[-8:],
         "n_lattice_starts": len(lat_list),
-        "requested": {k: asdict(v) for k, v in roles_req.items()},
-        "aligned": {k: asdict(v) for k, v in aligned.items()},
+        "requested": {k: asdict(v) for (k, v) in roles_req.items()},
+        "aligned": {k: asdict(v) for (k, v) in aligned.items()},
         "cli_dates": cli,
-        "overlap_trading_days": {k: v for k, v in overlap.items() if v},
+        "overlap_trading_days": {k: v for (k, v) in overlap.items() if v},
         "notes": [
             "Pass cli_dates as --train_start/--train_end/--val_start/--val_end/--test_start/--test_end.",
             "Roles in snap_roles start on the anchor lattice (flat 10-day phase matches).",
             "CSMD historical working test lattice anchor=2024-01-03; Jan-01→first TD 2024-01-02 is phase +1.",
-            "Phase lock ≠ good MCC: old eqEnc3x6 s42 is MCC~0.105 on 2024H1 but ~0.005 on 2024H2 "
-            "(same lattice). 3y/6m/6m with val=H1 test=H2 can look 'aligned but bad' for that reason.",
+            "Phase lock ≠ good MCC: old eqEnc3x6 s42 is MCC~0.105 on 2024H1 but ~0.005 on 2024H2 (same lattice). 3y/6m/6m with val=H1 test=H2 can look 'aligned but bad' for that reason.",
         ],
     }
 
@@ -386,10 +364,7 @@ def _print_human(result: dict) -> None:
     for role in ("train", "val", "test"):
         a = result["aligned"][role]
         print(
-            f"{role:5s}  req [{a['requested_start']} .. {a['requested_end']}]  →  "
-            f"[{a['aligned_start']} .. {a['aligned_end']}]  "
-            f"tdays={a['n_trading_days']} wins={a['n_windows']}  "
-            f"first_win={a['first_window'][:1]}.. on_lattice={a['on_lattice']}"
+            f"{role:5s}  req [{a['requested_start']} .. {a['requested_end']}]  →  [{a['aligned_start']} .. {a['aligned_end']}]  tdays={a['n_trading_days']} wins={a['n_windows']}  first_win={a['first_window'][:1]}.. on_lattice={a['on_lattice']}"
         )
     print("--- CLI ---")
     for k, v in result["cli_dates"].items():
@@ -399,8 +374,12 @@ def _print_human(result: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--dataset", default="csmd50", choices=["csmd50", "csmd300", "sse50", "massive", "stocknet"])
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--dataset", default="csmd50", choices=["csmd50", "csmd300", "sse50", "massive", "stocknet"]
+    )
     p.add_argument("--root", default="", help="dataset root (default by --dataset)")
     p.add_argument("--train", type=_parse_range, required=True, help="START:END")
     p.add_argument("--val", type=_parse_range, required=True, help="START:END")
@@ -416,8 +395,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--snap-roles",
         default="val,test",
-        help="comma list of roles to snap onto the lattice (default: val,test; "
-        "use train,val,test for a single global phase including train)",
+        help="comma list of roles to snap onto the lattice (default: val,test; use train,val,test for a single global phase including train)",
     )
     p.add_argument(
         "--end-mode",
@@ -429,7 +407,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--json-out", default="", help="write full result JSON to path")
     p.add_argument("--quiet", action="store_true")
     args = p.parse_args(argv)
-
     _setup_path()
     root = args.root or _default_root(args.dataset)
     snap_roles = [x.strip() for x in str(args.snap_roles).split(",") if x.strip()]

@@ -1,14 +1,13 @@
-#!/usr/bin/env python3
 """
 Crawl Massive.com via RESTClient for StockTable companies.
 
   prices: daily OHLCV (incl. volume) -> prices.csv
   news:   one JSON per calendar day  -> news/YYYY-MM-DD.json
 
-Layout under /home/zhaokx/Pattern/massive_stocktable/data/{SYMBOL}/
+Layout under data/massive_stocktable/data/{SYMBOL}/
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import argparse
 import csv
 import json
@@ -19,18 +18,13 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
 from massive import RESTClient
 
-ROOT = Path("/home/zhaokx/Pattern/massive_stocktable")
+ROOT = Path("data/massive_stocktable")
 DATA = ROOT / "data"
 LOGS = ROOT / "logs"
 TICKERS_CSV = ROOT / "tickers.csv"
-
-DEFAULT_KEY = os.environ.get(
-    "POLYGON_API_KEY",
-    os.environ.get("MASSIVE_API_KEY", "ZstU7A0MG2m3wKDdM7oHemcbDJ3eSOpc"),
-)
+DEFAULT_KEY = os.environ.get("MASSIVE_API_KEY", os.environ.get("POLYGON_API_KEY", ""))
 DEFAULT_SLEEP = 0.35
 
 
@@ -60,7 +54,7 @@ def published_to_date(published_utc: str | None) -> str | None:
     if not published_utc:
         return None
     s = str(published_utc).strip()
-    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+    if len(s) >= 10 and s[4] == "-" and (s[7] == "-"):
         return s[:10]
     return None
 
@@ -86,7 +80,6 @@ def article_from_api(item: Any, query_ticker: str) -> dict[str, Any]:
     if sent is None and insight_dicts:
         sent = insight_dicts[0].get("sentiment")
         sent_reason = insight_dicts[0].get("sentiment_reasoning")
-
     pub = item.publisher
     source = getattr(pub, "name", None) if pub is not None else None
     tickers = list(item.tickers or [])
@@ -111,17 +104,14 @@ def write_news_daily(news_dir: Path, query_ticker: str, articles: list[dict]) ->
     if news_dir.exists():
         shutil.rmtree(news_dir)
     news_dir.mkdir(parents=True, exist_ok=True)
-
     by_day: dict[str, list[dict]] = defaultdict(list)
     for a in articles:
         day = published_to_date(a.get("published_utc"))
         if not day:
             day = "unknown"
         by_day[day].append(a)
-
     for day in sorted(by_day):
         day_arts = sorted(by_day[day], key=lambda x: x.get("published_utc") or "")
-        # dedupe by id within day
         seen: dict[str, dict] = {}
         for a in day_arts:
             aid = a.get("id") or json.dumps(a, sort_keys=True, ensure_ascii=False)
@@ -136,7 +126,6 @@ def write_news_daily(news_dir: Path, query_ticker: str, articles: list[dict]) ->
         }
         with (news_dir / f"{day}.json").open("w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
-
     return {"n_news": len(articles), "n_days": len(by_day), "news_dir": str(news_dir)}
 
 
@@ -144,20 +133,15 @@ def news_done(news_dir: Path) -> bool:
     return news_dir.is_dir() and any(news_dir.glob("*.json"))
 
 
-def fetch_prices(client: RESTClient, ticker: str, start: str, end: str, sleep_s: float) -> tuple[list[dict], dict]:
+def fetch_prices(
+    client: RESTClient, ticker: str, start: str, end: str, sleep_s: float
+) -> tuple[list[dict], dict]:
     meta: dict[str, Any] = {"ticker": ticker, "errors": []}
     rows: list[dict] = []
     try:
         for i, a in enumerate(
             client.list_aggs(
-                ticker,
-                1,
-                "day",
-                from_=start,
-                to=end,
-                adjusted=True,
-                sort="asc",
-                limit=50000,
+                ticker, 1, "day", from_=start, to=end, adjusted=True, sort="asc", limit=50000
             )
         ):
             ts = int(a.timestamp) / 1000.0
@@ -175,12 +159,11 @@ def fetch_prices(client: RESTClient, ticker: str, start: str, end: str, sleep_s:
                     "ticker_api": ticker,
                 }
             )
-            if sleep_s and i > 0 and i % 1000 == 0:
+            if sleep_s and i > 0 and (i % 1000 == 0):
                 time.sleep(sleep_s)
     except Exception as exc:
         meta["errors"].append(str(exc))
         log(f"  prices {ticker} ERROR {exc}")
-
     by_date = {r["date"]: r for r in rows}
     rows = [by_date[k] for k in sorted(by_date)]
     meta["n_bars"] = len(rows)
@@ -188,10 +171,12 @@ def fetch_prices(client: RESTClient, ticker: str, start: str, end: str, sleep_s:
         meta["date_min"] = rows[0]["date"]
         meta["date_max"] = rows[-1]["date"]
     log(f"  prices {ticker} n={len(rows)}")
-    return rows, meta
+    return (rows, meta)
 
 
-def fetch_news(client: RESTClient, ticker: str, start: str, end: str, sleep_s: float) -> tuple[list[dict], dict]:
+def fetch_news(
+    client: RESTClient, ticker: str, start: str, end: str, sleep_s: float
+) -> tuple[list[dict], dict]:
     meta: dict[str, Any] = {"ticker": ticker, "errors": [], "n_iter": 0}
     rows: list[dict] = []
     try:
@@ -211,12 +196,11 @@ def fetch_news(client: RESTClient, ticker: str, start: str, end: str, sleep_s: f
     except Exception as exc:
         meta["errors"].append(str(exc))
         log(f"  news {ticker} ERROR {exc}")
-
     by_id = {r["id"]: r for r in rows if r.get("id")}
     rows = sorted(by_id.values(), key=lambda r: r.get("published_utc") or "")
     meta["n_news"] = len(rows)
     log(f"  news {ticker} n={len(rows)}")
-    return rows, meta
+    return (rows, meta)
 
 
 def convert_news_csv_to_daily(sym_dir: Path) -> bool:
@@ -230,9 +214,11 @@ def convert_news_csv_to_daily(sym_dir: Path) -> bool:
             tickers = []
             raw_t = row.get("tickers") or ""
             try:
-                tickers = json.loads(raw_t) if raw_t.startswith("[") else [
-                    t for t in (row.get("tickers_join") or "").split("|") if t
-                ]
+                tickers = (
+                    json.loads(raw_t)
+                    if raw_t.startswith("[")
+                    else [t for t in (row.get("tickers_join") or "").split("|") if t]
+                )
             except json.JSONDecodeError:
                 tickers = [t for t in (row.get("tickers_join") or "").split("|") if t]
             insights = []
@@ -264,9 +250,7 @@ def convert_news_csv_to_daily(sym_dir: Path) -> bool:
                 }
             )
     query = articles[0].get("query_ticker") if articles else sym_dir.name
-    # query_ticker was in CSV; fall back
     if articles and "query_ticker" not in articles[0]:
-        # already not in article dict; use folder / first CSV col
         pass
     with csv_path.open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -294,11 +278,8 @@ def crawl_one(
     prices_path = out_dir / "prices.csv"
     news_dir = out_dir / "news"
     meta_path = out_dir / "meta.json"
-
-    # migrate legacy news.csv if present
     if (out_dir / "news.csv").exists() and (force or not news_done(news_dir)):
         convert_news_csv_to_daily(out_dir)
-
     meta: dict[str, Any] = {
         "sector": row.get("sector"),
         "company": row.get("company"),
@@ -310,44 +291,50 @@ def crawl_one(
         "client": "massive.RESTClient",
     }
     log(f"== {sym_raw} (api={sym_api}) ==")
-
     used_price_sym = sym_api
     if do_prices and (force or not prices_path.exists() or prices_path.stat().st_size < 50):
-        price_rows, pmeta = fetch_prices(client, sym_api, start, end, sleep_s)
+        (price_rows, pmeta) = fetch_prices(client, sym_api, start, end, sleep_s)
         if not price_rows and sym_api != sym_raw:
             log(f"  retry prices raw {sym_raw}")
-            price_rows, pmeta2 = fetch_prices(client, sym_raw, start, end, sleep_s)
+            (price_rows, pmeta2) = fetch_prices(client, sym_raw, start, end, sleep_s)
             pmeta["fallback_raw"] = pmeta2
             if price_rows:
                 used_price_sym = sym_raw
         write_csv(
             prices_path,
             price_rows,
-            ["date", "open", "high", "low", "close", "volume", "vwap", "transactions", "ticker_api"],
+            [
+                "date",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "vwap",
+                "transactions",
+                "ticker_api",
+            ],
         )
         meta["prices"] = pmeta
         meta["prices_used_symbol"] = used_price_sym
         time.sleep(sleep_s)
     else:
         meta["prices"] = {"skipped": True, "exists": prices_path.exists()}
-
     if do_news and (force or not news_done(news_dir)):
-        news_rows, nmeta = fetch_news(client, sym_api, start, end, sleep_s)
+        (news_rows, nmeta) = fetch_news(client, sym_api, start, end, sleep_s)
         if not news_rows and sym_api != sym_raw:
             log(f"  retry news raw {sym_raw}")
-            news_rows, nmeta2 = fetch_news(client, sym_raw, start, end, sleep_s)
+            (news_rows, nmeta2) = fetch_news(client, sym_raw, start, end, sleep_s)
             nmeta["fallback_raw"] = nmeta2
         wmeta = write_news_daily(news_dir, sym_api, news_rows)
         nmeta.update(wmeta)
         meta["news"] = nmeta
-        # remove legacy csv if any
         legacy = out_dir / "news.csv"
         if legacy.exists():
             legacy.unlink()
         time.sleep(sleep_s)
     else:
         meta["news"] = {"skipped": True, "exists": news_done(news_dir)}
-
     with meta_path.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
@@ -368,24 +355,20 @@ def main() -> None:
         help="Only convert existing news.csv -> news/*.json, no API calls",
     )
     args = ap.parse_args()
-
     DATA.mkdir(parents=True, exist_ok=True)
     LOGS.mkdir(parents=True, exist_ok=True)
-
     if args.convert_only:
         for p in sorted(DATA.iterdir()):
             if p.is_dir() and (p / "news.csv").exists():
                 convert_news_csv_to_daily(p)
         log("convert_only DONE")
         return
-
     client = RESTClient(args.api_key)
     tickers = load_tickers(TICKERS_CSV)
     if args.symbols:
         want = {s.strip().upper() for s in args.symbols.split(",") if s.strip()}
         tickers = [t for t in tickers if t["symbol_raw"].upper() in want]
-
-    log(f"start crawl n={len(tickers)} range={args.start}..{args.end} sleep={args.sleep} key=...{args.api_key[-4:]}")
+    log(f"start crawl n={len(tickers)} range={args.start}..{args.end} sleep={args.sleep}")
     for t in tickers:
         try:
             crawl_one(

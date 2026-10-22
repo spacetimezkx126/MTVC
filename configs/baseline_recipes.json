@@ -1,0 +1,1475 @@
+{
+  "scope": "Historical no-volume baseline inference; no training or seed selection.",
+  "runs": [
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "adv_alstm_csmd300_seed42/adv_alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5311,
+        "mcc": 0.0,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "adv_alstm_csmd300_seed43/adv_alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5311,
+        "mcc": 0.0,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "adv_alstm_csmd300_seed44/adv_alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5311,
+        "mcc": 0.0,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_csmd300_seed45/adv_alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5311,
+        "mcc": 0.0007,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_csmd300_seed46/adv_alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5226,
+        "mcc": 0.0132,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "adv_alstm_csmd50_seed42/adv_alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5117,
+        "mcc": -0.0003,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_csmd50_seed43/adv_alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5131,
+        "mcc": 0.0,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_csmd50_seed44/adv_alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5131,
+        "mcc": 0.0,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "adv_alstm_csmd50_seed45/adv_alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5131,
+        "mcc": 0.0,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_csmd50_seed46/adv_alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5094,
+        "mcc": -0.0146,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_massive_seed42/adv_alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5337,
+        "mcc": 0.0372,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_massive_seed43/adv_alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_massive_seed44/adv_alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_massive_seed45/adv_alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "adv_alstm",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "adv_alstm_massive_seed46/adv_alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd300_seed42/alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5214,
+        "mcc": -0.006,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd300_seed43/alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5262,
+        "mcc": 0.0054,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd300_seed44/alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5289,
+        "mcc": -0.0068,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd300_seed45/alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5274,
+        "mcc": -0.0033,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "alstm_csmd300_seed46/alstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5208,
+        "mcc": 0.0056,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd50_seed42/alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5074,
+        "mcc": -0.0094,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd50_seed43/alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5096,
+        "mcc": 0.0012,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "alstm_csmd50_seed44/alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5046,
+        "mcc": -0.0129,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_csmd50_seed45/alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5022,
+        "mcc": -0.0139,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "alstm_csmd50_seed46/alstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5108,
+        "mcc": -0.0031,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "alstm_massive_seed42/alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5287,
+        "mcc": 0.0255,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_massive_seed43/alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5302,
+        "mcc": 0.0126,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "alstm_massive_seed44/alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0053,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "alstm_massive_seed45/alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5303,
+        "mcc": 0.0118,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "alstm",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:1",
+      "checkpoint": "alstm_massive_seed46/alstm/best_massive.pt",
+      "expected": {
+        "acc": 0.53,
+        "mcc": 0.0079,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_csmd300_seed42/bi_lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.529,
+        "mcc": 0.0091,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "bi_lstm_csmd300_seed43/bi_lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5279,
+        "mcc": 0.0135,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "bi_lstm_csmd300_seed44/bi_lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5284,
+        "mcc": 0.0113,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "bi_lstm_csmd300_seed45/bi_lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5287,
+        "mcc": 0.0174,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_csmd300_seed46/bi_lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5262,
+        "mcc": 0.0005,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_csmd50_seed42/bi_lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5081,
+        "mcc": -0.0063,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_csmd50_seed43/bi_lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.4947,
+        "mcc": -0.0156,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_csmd50_seed44/bi_lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5113,
+        "mcc": -0.0107,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_csmd50_seed45/bi_lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5102,
+        "mcc": -0.0059,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:1",
+      "checkpoint": "bi_lstm_csmd50_seed46/bi_lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.4999,
+        "mcc": -0.0172,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "bi_lstm_massive_seed42/bi_lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5296,
+        "mcc": 0.0009,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_massive_seed43/bi_lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5293,
+        "mcc": -0.0008,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_massive_seed44/bi_lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5296,
+        "mcc": -0.0141,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "bi_lstm_massive_seed45/bi_lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0059,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "bi_lstm",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:1",
+      "checkpoint": "bi_lstm_massive_seed46/bi_lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5302,
+        "mcc": 0.0092,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_csmd300_seed42/dtml/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5304,
+        "mcc": 0.0074,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_csmd300_seed43/dtml/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5288,
+        "mcc": 0.0073,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_csmd300_seed44/dtml/best_csmd300.pt",
+      "expected": {
+        "acc": 0.521,
+        "mcc": -0.0383,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_csmd300_seed45/dtml/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5302,
+        "mcc": 0.0089,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_csmd300_seed46/dtml/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5271,
+        "mcc": 0.0081,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_csmd50_seed42/dtml/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5103,
+        "mcc": -0.0177,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_csmd50_seed43/dtml/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5139,
+        "mcc": 0.0096,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_csmd50_seed44/dtml/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5147,
+        "mcc": 0.0135,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_csmd50_seed45/dtml/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5135,
+        "mcc": 0.0067,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_csmd50_seed46/dtml/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5129,
+        "mcc": 0.0056,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_massive_seed42/dtml/best_massive.pt",
+      "expected": {
+        "acc": 0.5295,
+        "mcc": -0.0061,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_massive_seed43/dtml/best_massive.pt",
+      "expected": {
+        "acc": 0.5276,
+        "mcc": 0.0021,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "dtml_massive_seed44/dtml/best_massive.pt",
+      "expected": {
+        "acc": 0.5299,
+        "mcc": 0.0019,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_massive_seed45/dtml/best_massive.pt",
+      "expected": {
+        "acc": 0.5221,
+        "mcc": -0.0219,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "dtml",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "dtml_massive_seed46/dtml/best_massive.pt",
+      "expected": {
+        "acc": 0.5302,
+        "mcc": 0.0116,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd300_seed42/lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5296,
+        "mcc": 0.001,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd300_seed43/lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.526,
+        "mcc": 0.0051,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd300_seed44/lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.52,
+        "mcc": 0.0147,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_csmd300_seed45/lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5255,
+        "mcc": 0.0057,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd300_seed46/lstm/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5222,
+        "mcc": 0.0118,
+        "n": 54043
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd50_seed42/lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5089,
+        "mcc": -0.0135,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd50_seed43/lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5081,
+        "mcc": -0.0224,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_csmd50_seed44/lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5026,
+        "mcc": -0.0183,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_csmd50_seed45/lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5029,
+        "mcc": -0.0118,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_csmd50_seed46/lstm/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5088,
+        "mcc": -0.0085,
+        "n": 8612
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_massive_seed42/lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5293,
+        "mcc": 0.0178,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_massive_seed43/lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5296,
+        "mcc": 0.0035,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_massive_seed44/lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5296,
+        "mcc": -0.0054,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "lstm_massive_seed45/lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5294,
+        "mcc": -0.0101,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "lstm",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "lstm_massive_seed46/lstm/best_massive.pt",
+      "expected": {
+        "acc": 0.5293,
+        "mcc": -0.0059,
+        "n": 13366
+      },
+      "reference_source": "rounded_training_log",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "pen_csmd300_seed42/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5306605545953258,
+        "mcc": 0.024220954720991457,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd300_seed43/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5315247614037725,
+        "mcc": 0.024321469571163788,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "pen_csmd300_seed44/best_csmd300.pt",
+      "expected": {
+        "acc": 0.531130232208612,
+        "mcc": 0.022141681815633554,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd300_seed45/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5318065679717442,
+        "mcc": 0.02908670334945387,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd300_seed46/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5301345156684452,
+        "mcc": 0.016248924676155903,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd50_seed42/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5104350902016271,
+        "mcc": -0.000631429122212597,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd50_seed43/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5117321070628463,
+        "mcc": -0.0019156303182822887,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd50_seed44/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5073694139842,
+        "mcc": -0.0050301106574472095,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "pen_csmd50_seed45/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5051291121330032,
+        "mcc": -0.011865870451764942,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_csmd50_seed46/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5021813465393232,
+        "mcc": -0.0126970069751115,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_massive_seed42/best_massive.pt",
+      "expected": {
+        "acc": 0.5242999923704891,
+        "mcc": 0.006171386113100784,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_massive_seed43/best_massive.pt",
+      "expected": {
+        "acc": 0.5065995269703212,
+        "mcc": 0.0009095506138046681,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_massive_seed44/best_massive.pt",
+      "expected": {
+        "acc": 0.5240711070420386,
+        "mcc": 0.0012563641237363448,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:1",
+      "checkpoint": "pen_massive_seed45/best_massive.pt",
+      "expected": {
+        "acc": 0.5161364156557565,
+        "mcc": 0.0010612183478563076,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "pen",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "pen_massive_seed46/best_massive.pt",
+      "expected": {
+        "acc": 0.5139238574807354,
+        "mcc": 0.005096449087653559,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": false
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd300",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd300_seed42/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5304726835500113,
+        "mcc": 0.018446949525525808,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd300",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd300_seed43/best_csmd300.pt",
+      "expected": {
+        "acc": 0.52928909596453,
+        "mcc": 0.008452746640020778,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd300",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd300_seed44/best_csmd300.pt",
+      "expected": {
+        "acc": 0.5284812504696776,
+        "mcc": 0.018470995458347177,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd300",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "stocknet_csmd300_seed45/best_csmd300.pt",
+      "expected": {
+        "acc": 0.526658901330127,
+        "mcc": 0.0046236908685256635,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd300",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "stocknet_csmd300_seed46/best_csmd300.pt",
+      "expected": {
+        "acc": 0.532802284511911,
+        "mcc": 0.03111953376581301,
+        "n": 53228
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd50",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd50_seed42/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5119679283103408,
+        "mcc": 0.008314035822068975,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd50",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd50_seed43/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5094918052116496,
+        "mcc": 0.002989481467149945,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd50",
+      "seed": 44,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd50_seed44/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5106709114491216,
+        "mcc": -0.003953374997675161,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd50",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "stocknet_csmd50_seed45/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5122037495578352,
+        "mcc": 0.007379377796086697,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "csmd50",
+      "seed": 46,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_csmd50_seed46/best_csmd50.pt",
+      "expected": {
+        "acc": 0.5060723971229808,
+        "mcc": -0.01551503082267447,
+        "n": 8481
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "massive",
+      "seed": 42,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_massive_seed42/best_massive.pt",
+      "expected": {
+        "acc": 0.5272755016403449,
+        "mcc": 0.015114142892302704,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "massive",
+      "seed": 43,
+      "training_device": "cuda:1",
+      "checkpoint": "stocknet_massive_seed43/best_massive.pt",
+      "expected": {
+        "acc": 0.5307087815671016,
+        "mcc": 0.01706157285249852,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "massive",
+      "seed": 44,
+      "training_device": "cuda:0",
+      "checkpoint": "stocknet_massive_seed44/best_massive.pt",
+      "expected": {
+        "acc": 0.49454489967193105,
+        "mcc": 0.009025670305131992,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "massive",
+      "seed": 45,
+      "training_device": "cuda:0",
+      "checkpoint": "stocknet_massive_seed45/best_massive.pt",
+      "expected": {
+        "acc": 0.5259021896696422,
+        "mcc": 0.0006044808111930651,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    },
+    {
+      "method": "stocknet",
+      "dataset": "massive",
+      "seed": 46,
+      "training_device": "cuda:0",
+      "checkpoint": "stocknet_massive_seed46/best_massive.pt",
+      "expected": {
+        "acc": 0.5039291981383993,
+        "mcc": 0.0017312835637600355,
+        "n": 13107
+      },
+      "reference_source": "checkpoint_metadata",
+      "test_sampling_state_available": true
+    }
+  ]
+}
